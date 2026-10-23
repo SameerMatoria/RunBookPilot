@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RunbookPilot Blueprint</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --surface: #ffffff;
+    --text: #1d1d1b;
+    --muted: #5f5f5a;
+    --line: #b9b8b0;
+    --rule: #e4e3de;
+    --tint: #efeeea;
+    --accent: #2f6fd6;
+    --accent-bg: rgba(47, 111, 214, 0.12);
+    --code-bg: #f0efeb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1b1a;
+      --surface: #242423;
+      --text: #ecebe6;
+      --muted: #a8a79f;
+      --line: #6d6c66;
+      --rule: #3a3a37;
+      --tint: #2d2d2b;
+      --accent: #6ea0f0;
+      --accent-bg: rgba(110, 160, 240, 0.16);
+      --code-bg: #2d2d2b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 16px 80px; }
+  header.top { border-bottom: 1px solid var(--rule); padding-bottom: 20px; margin-bottom: 8px; }
+  .eyebrow { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+  h1 { font-size: 34px; line-height: 1.2; margin: 6px 0 8px; }
+  .byline { color: var(--muted); font-size: 14px; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 8px; }
+  nav.toc a {
+    font-size: 13px; text-decoration: none; color: var(--text);
+    border: 1px solid var(--rule); background: var(--surface);
+    padding: 5px 11px; border-radius: 999px;
+  }
+  nav.toc a:hover { border-color: var(--accent); color: var(--accent); }
+  section { padding-top: 28px; }
+  h2 { font-size: 24px; margin: 12px 0 12px; padding-top: 12px; border-top: 1px solid var(--rule); }
+  h3 { font-size: 16px; margin: 24px 0 8px; }
+  p { margin: 0 0 12px; }
+  .lead { font-size: 17px; }
+  ul, ol { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: 14px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .table-wrap { overflow-x: auto; margin: 0 0 16px; border: 1px solid var(--rule); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--rule); }
+  th { background: var(--tint); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .formula {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 8px;
+    padding: 14px 16px; margin: 0 0 12px; font-family: Georgia, "Times New Roman", serif; font-size: 17px; text-align: center;
+  }
+  .note { color: var(--muted); font-size: 14.5px; }
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--accent-bg);
+    padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 0 0 16px;
+  }
+  figure { margin: 8px 0 16px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px; }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; text-align: center; }
+  /* diagram styles */
+  .d-box { fill: none; stroke: var(--line); stroke-width: 1.25; }
+  .d-main { fill: var(--accent-bg); stroke: var(--accent); stroke-width: 2; }
+  .d-group { fill: var(--tint); stroke: var(--line); stroke-width: 1.25; }
+  .d-edge { fill: none; stroke: var(--line); stroke-width: 1.25; }
+  .d-arrow { fill: var(--line); }
+  .d-title { fill: var(--text); font-size: 15px; font-weight: 600; }
+  .d-name { fill: var(--text); font-size: 13px; font-weight: 600; }
+  .d-text { fill: var(--text); font-size: 13px; }
+  .d-sub { fill: var(--muted); font-size: 11.5px; }
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 13px; }
+  @media (max-width: 600px) { h1 { font-size: 27px; } h2 { font-size: 21px; } }
+  @media print {
+    body { background: #fff; }
+    nav.toc { display: none; }
+    section { break-inside: auto; }
+    figure, .table-wrap, .callout { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Kyndryl Hackathon · Track 01 · Intelligent IT Services</div>
+  <h1>RunbookPilot — Hackathon Blueprint</h1>
+  <div class="byline">29 September 2026</div>
+  <nav class="toc" aria-label="Sections">
+    <a href="#summary">Summary</a>
+    <a href="#business">Business use case</a>
+    <a href="#impact">Impact &amp; metrics</a>
+    <a href="#overview">Solution overview</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#tech">Tech specs</a>
+    <a href="#design">Design doc</a>
+    <a href="#plan">Hackathon plan</a>
+  </nav>
+</header>
+
+<!-- SUMMARY -->
+<section id="summary">
+  <h2>Summary</h2>
+  <p class="lead"><strong>RunbookPilot turns written IT runbooks into tested, approved automation.</strong> An engineer uploads a Word, PDF or wiki runbook. An AI agent extracts the steps, writes a PowerShell or Ansible script, tests it in a sandbox, and sends it to an engineer for one-click approval.</p>
+  <p><strong>Track fit: Track 01, Intelligent IT Services.</strong> The track asks for a challenge where automation replaces manual effort, with proof of how the work changes. RunbookPilot turns effort-led operations (people following documents) into automation. It measures the change for each runbook: minutes per run before and after, and error rate.</p>
+  <div class="callout"><strong>One-line pitch:</strong> "Every ops team has hundreds of runbooks nobody has time to automate. RunbookPilot automates them for you, and a human still signs off."</div>
+</section>
+
+<!-- BUSINESS -->
+<section id="business">
+  <h2>Business use case</h2>
+  <p><strong>The problem: routine operations still depend on documents and people.</strong> Managed-services teams keep large libraries of runbooks: restart a service, clear disk space, rotate a certificate, onboard a user, fail over a database. Engineers follow them by hand, many times a week, across many client accounts.</p>
+  <p><strong>Why it stays manual.</strong> To automate a runbook, an engineer has to read it, write a script, test it safely and get it reviewed. That takes days per runbook, so only the most frequent runbooks get automated. The rest stay manual.</p>
+
+  <h3>Who feels it</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Who</th><th>Pain today</th><th>What RunbookPilot gives them</th></tr></thead>
+    <tbody>
+      <tr><td>L1/L2 operations engineers</td><td>Repetitive, error-prone manual steps; late-night toil</td><td>One-click execution of approved scripts</td></tr>
+      <tr><td>Automation engineers</td><td>Backlog of runbooks too long to ever finish</td><td>Agent drafts and tests; they only review</td></tr>
+      <tr><td>Delivery / account leads</td><td>SLA risk from slow, inconsistent manual work</td><td>Faster, consistent resolution; measurable savings</td></tr>
+      <tr><td>Security and compliance</td><td>No audit trail of what a human actually ran</td><td>Every script versioned, approved and logged</td></tr>
+    </tbody>
+  </table></div>
+
+  <p><strong>Current manual process:</strong> find the runbook → read it → log in to each server → run each step → check results → write notes. At each step, an engineer can skip a line, mistype a command or run it on the wrong server.</p>
+</section>
+
+<!-- IMPACT -->
+<section id="impact">
+  <h2>Impact and success metrics</h2>
+  <p><strong>The impact comes from two effects.</strong> Each automated run saves engineer time and removes human error. Converting a runbook also drops from days to minutes, so the long tail of rarely automated runbooks becomes worth automating.</p>
+
+  <h3>Metrics to prove in the demo</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Metric</th><th>How we measure it</th><th>Hackathon target</th></tr></thead>
+    <tbody>
+      <tr><td>Conversion success rate</td><td>Runbooks that yield a script passing sandbox tests on first review</td><td>7 of 10 test runbooks</td></tr>
+      <tr><td>Time to automate one runbook</td><td>Upload to approval-ready script</td><td>Under 10 minutes (vs. days manually)</td></tr>
+      <tr><td>Execution time per run</td><td>Manual walkthrough vs. script run, timed live</td><td>At least 10x faster</td></tr>
+      <tr><td>Human errors per run</td><td>Steps skipped or mistyped (manual) vs. script</td><td>Zero in the scripted runs</td></tr>
+      <tr><td>Reviewer edits needed</td><td>Lines changed by the approving engineer</td><td>Small, logged per script</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>ROI model (plug in real numbers from your account)</h3>
+  <div class="formula">Hours saved per year = Σ<sub>runbooks</sub> [ (manual min − automated min) × runs per year ] ÷ 60</div>
+  <p class="note">Illustrative only, using assumed numbers: 20 runbooks, 30 minutes manual vs. 2 minutes automated, each run 10 times a week, gives about 4,850 engineer-hours a year. Replace these assumptions with your team's real runbook counts and frequencies before the pitch.</p>
+  <p><strong>Beyond hours:</strong> fewer SLA breaches from slow manual work, a full audit trail of every automated action, and operational knowledge that no longer lives only in one senior engineer's head.</p>
+</section>
+
+<!-- OVERVIEW -->
+<section id="overview">
+  <h2>Solution overview</h2>
+  <p><strong>Seven steps take a runbook from document to approved automation, and a human approves before anything runs.</strong></p>
+  <figure>
+    <svg viewBox="0 0 760 724" role="img" aria-label="A runbook becomes automation only after tests pass and a human approves">
+      <defs>
+        <marker id="flow-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-arrow" d="M0 0L10 5L0 10z"/></marker>
+      </defs>
+      <text class="d-title" x="24" y="36">A runbook becomes automation only after tests pass and a human approves</text>
+      <g class="d-edge">
+        <path d="M260 124V164" marker-end="url(#flow-arrow)"/>
+        <path d="M260 220V260" marker-end="url(#flow-arrow)"/>
+        <path d="M260 316V356" marker-end="url(#flow-arrow)"/>
+        <path d="M260 412V452" marker-end="url(#flow-arrow)"/>
+        <path d="M260 508V548" marker-end="url(#flow-arrow)"/>
+        <path d="M260 604V644" marker-end="url(#flow-arrow)"/>
+        <path d="M420 192H460" marker-start="url(#flow-arrow)" marker-end="url(#flow-arrow)"/>
+        <path d="M420 384H460" marker-end="url(#flow-arrow)"/>
+        <path d="M590 356V288H420" marker-end="url(#flow-arrow)"/>
+        <path d="M100 576H60V288H100" marker-end="url(#flow-arrow)"/>
+      </g>
+      <rect class="d-box" x="100" y="68" width="320" height="56" rx="8"/>
+      <text class="d-name" x="260" y="92" text-anchor="middle">Engineer uploads a runbook</text>
+      <text class="d-sub" x="260" y="108" text-anchor="middle">PDF, Word or wiki page</text>
+
+      <rect class="d-box" x="100" y="164" width="320" height="56" rx="8"/>
+      <text class="d-name" x="260" y="188" text-anchor="middle">Parser agent extracts the steps</text>
+      <text class="d-sub" x="260" y="204" text-anchor="middle">action, target system, expected result</text>
+
+      <rect class="d-box" x="100" y="260" width="320" height="56" rx="8"/>
+      <text class="d-name" x="260" y="284" text-anchor="middle">Author agent writes the script</text>
+      <text class="d-sub" x="260" y="300" text-anchor="middle">PowerShell or Bash, dry-run by default</text>
+
+      <rect class="d-box" x="100" y="356" width="320" height="56" rx="8"/>
+      <text class="d-name" x="260" y="380" text-anchor="middle">Lint and sandbox test</text>
+      <text class="d-sub" x="260" y="396" text-anchor="middle">pass or fail for every step, logs kept</text>
+
+      <rect class="d-box" x="100" y="452" width="320" height="56" rx="8"/>
+      <text class="d-name" x="260" y="476" text-anchor="middle">Reviewer agent writes a summary card</text>
+      <text class="d-sub" x="260" y="492" text-anchor="middle">what it does, risks, test evidence</text>
+
+      <rect class="d-box" x="100" y="548" width="320" height="56" rx="8"/>
+      <text class="d-name" x="260" y="572" text-anchor="middle">Engineer approves</text>
+      <text class="d-sub" x="260" y="588" text-anchor="middle">one or two approvers, by risk tier</text>
+
+      <rect class="d-main" x="100" y="644" width="320" height="56" rx="8"/>
+      <text class="d-name" x="260" y="668" text-anchor="middle">Script joins the automation library</text>
+      <text class="d-sub" x="260" y="684" text-anchor="middle">runs in one click, every run logged</text>
+
+      <rect class="d-box" x="460" y="164" width="260" height="56" rx="8"/>
+      <text class="d-name" x="590" y="188" text-anchor="middle">Step unclear?</text>
+      <text class="d-sub" x="590" y="204" text-anchor="middle">engineer answers, parsing continues</text>
+
+      <rect class="d-box" x="460" y="356" width="260" height="56" rx="8"/>
+      <text class="d-name" x="590" y="380" text-anchor="middle">Test failed</text>
+      <text class="d-sub" x="590" y="396" text-anchor="middle">fix and retest, up to 3 tries</text>
+
+      <text class="d-sub" x="48" y="432" text-anchor="middle" transform="rotate(-90 48 432)">rejected: feedback to the author</text>
+    </svg>
+    <figcaption>RunbookPilot flow · 7 steps, 3 loops</figcaption>
+  </figure>
+  <p>Three loops keep it safe: unclear steps go to the engineer, failed tests retry up to 3 times, and rejected scripts go back to the Author agent with the reviewer's feedback.</p>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <h2>Architecture</h2>
+  <p><strong>Agents write and test code only in an isolated sandbox. A script reaches real servers only after an engineer approves it.</strong></p>
+  <figure>
+    <svg viewBox="0 0 760 724" role="img" aria-label="Agents only touch the sandbox; only approved scripts reach real servers">
+      <defs>
+        <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-arrow" d="M0 0L10 5L0 10z"/></marker>
+      </defs>
+      <text class="d-title" x="24" y="36">Agents only touch the sandbox; only approved scripts reach real servers</text>
+
+      <rect class="d-group" x="24" y="252" width="688" height="136" rx="8"/>
+      <text class="d-name" x="40" y="276">Agent pipeline · Foundry Agent Service</text>
+      <text class="d-sub" x="40" y="292">Microsoft Agent Framework · GPT-5.4 or Claude in Foundry</text>
+
+      <g class="d-edge">
+        <path d="M184 116V156" marker-start="url(#arch-arrow)" marker-end="url(#arch-arrow)"/>
+        <path d="M552 116V156" marker-start="url(#arch-arrow)" marker-end="url(#arch-arrow)"/>
+        <path d="M368 212V252" marker-end="url(#arch-arrow)"/>
+        <path d="M186 344H210" marker-end="url(#arch-arrow)"/>
+        <path d="M356 344H380" marker-end="url(#arch-arrow)"/>
+        <path d="M526 344H550" marker-end="url(#arch-arrow)"/>
+        <path d="M113 372V420" marker-end="url(#arch-arrow)"/>
+        <path d="M283 372V420" marker-end="url(#arch-arrow)"/>
+        <path d="M453 372V420" marker-end="url(#arch-arrow)"/>
+        <path d="M696 344H736V88H712" marker-end="url(#arch-arrow)"/>
+        <path d="M24 184H12V536H24" marker-end="url(#arch-arrow)"/>
+        <path d="M344 536H392" marker-end="url(#arch-arrow)"/>
+        <path d="M184 564V604" marker-end="url(#arch-arrow)"/>
+      </g>
+
+      <rect class="d-box" x="24" y="60" width="320" height="56" rx="8"/>
+      <text class="d-name" x="184" y="84" text-anchor="middle">Web app</text>
+      <text class="d-sub" x="184" y="100" text-anchor="middle">React · upload, review, dashboard</text>
+
+      <rect class="d-main" x="392" y="60" width="320" height="56" rx="8"/>
+      <text class="d-name" x="552" y="84" text-anchor="middle">Teams approval card</text>
+      <text class="d-sub" x="552" y="100" text-anchor="middle">Logic Apps · engineer approves or rejects</text>
+
+      <rect class="d-box" x="24" y="156" width="688" height="56" rx="8"/>
+      <text class="d-name" x="368" y="180" text-anchor="middle">Backend API · Azure Functions</text>
+      <text class="d-sub" x="368" y="196" text-anchor="middle">stores runbooks, starts the pipeline, records every decision</text>
+
+      <rect class="d-box" x="40" y="316" width="146" height="56" rx="8"/>
+      <text class="d-name" x="113" y="340" text-anchor="middle">Parser agent</text>
+      <text class="d-sub" x="113" y="356" text-anchor="middle">steps from the doc</text>
+
+      <rect class="d-box" x="210" y="316" width="146" height="56" rx="8"/>
+      <text class="d-name" x="283" y="340" text-anchor="middle">Author agent</text>
+      <text class="d-sub" x="283" y="356" text-anchor="middle">writes the script</text>
+
+      <rect class="d-box" x="380" y="316" width="146" height="56" rx="8"/>
+      <text class="d-name" x="453" y="340" text-anchor="middle">Tester agent</text>
+      <text class="d-sub" x="453" y="356" text-anchor="middle">runs in sandbox</text>
+
+      <rect class="d-box" x="550" y="316" width="146" height="56" rx="8"/>
+      <text class="d-name" x="623" y="340" text-anchor="middle">Reviewer agent</text>
+      <text class="d-sub" x="623" y="356" text-anchor="middle">builds the card</text>
+
+      <rect class="d-box" x="40" y="420" width="146" height="56" rx="8"/>
+      <text class="d-name" x="113" y="444" text-anchor="middle">Doc Intelligence</text>
+      <text class="d-sub" x="113" y="460" text-anchor="middle">reads PDF and Word</text>
+
+      <rect class="d-box" x="210" y="420" width="146" height="56" rx="8"/>
+      <text class="d-name" x="283" y="444" text-anchor="middle">Lint gates</text>
+      <text class="d-sub" x="283" y="460" text-anchor="middle">static checks</text>
+
+      <rect class="d-box" x="380" y="420" width="146" height="56" rx="8"/>
+      <text class="d-name" x="453" y="444" text-anchor="middle">Sandbox</text>
+      <text class="d-sub" x="453" y="460" text-anchor="middle">Container Apps jobs</text>
+
+      <rect class="d-box" x="24" y="508" width="320" height="56" rx="8"/>
+      <text class="d-name" x="184" y="532" text-anchor="middle">Azure Automation or Ansible</text>
+      <text class="d-sub" x="184" y="548" text-anchor="middle">runs approved scripts only, every run logged</text>
+
+      <rect class="d-box" x="392" y="508" width="320" height="56" rx="8"/>
+      <text class="d-name" x="552" y="532" text-anchor="middle">Target servers</text>
+      <text class="d-sub" x="552" y="548" text-anchor="middle">real client systems</text>
+
+      <text class="d-sub" x="192" y="588">reads scripts and secrets</text>
+
+      <rect class="d-box" x="24" y="604" width="688" height="96" rx="8"/>
+      <text class="d-name" x="40" y="628">Data and security</text>
+      <rect class="d-box" x="40" y="644" width="116" height="40" rx="8"/>
+      <rect class="d-box" x="175" y="644" width="116" height="40" rx="8"/>
+      <rect class="d-box" x="310" y="644" width="116" height="40" rx="8"/>
+      <rect class="d-box" x="445" y="644" width="116" height="40" rx="8"/>
+      <rect class="d-box" x="580" y="644" width="116" height="40" rx="8"/>
+      <text class="d-text" x="98" y="668" text-anchor="middle">Blob Storage</text>
+      <text class="d-text" x="233" y="668" text-anchor="middle">Cosmos DB</text>
+      <text class="d-text" x="368" y="668" text-anchor="middle">GitHub repo</text>
+      <text class="d-text" x="503" y="668" text-anchor="middle">Key Vault</text>
+      <text class="d-text" x="638" y="668" text-anchor="middle">App Insights</text>
+    </svg>
+    <figcaption>RunbookPilot architecture · 5 layers</figcaption>
+  </figure>
+  <p>The web app and Teams talk to one backend API. The API starts the four-agent pipeline in Foundry, which reads documents, lints and tests in the sandbox, then sends a summary card to Teams. Only after approval does the API hand the script to Azure Automation or Ansible, which pulls it from GitHub and secrets from Key Vault at run time.</p>
+</section>
+
+<!-- TECH -->
+<section id="tech">
+  <h2>Tech specifications</h2>
+  <p><strong>The stack is Microsoft Azure, to fit a Microsoft partner hackathon.</strong> Foundry Agent Service is generally available, is built on the Responses API, and includes Entra RBAC, tracing and evaluation (<a href="https://devblogs.microsoft.com/foundry/whats-new-in-microsoft-foundry-mar-2026/">source</a>). Hosted agents reached general availability on July 9, 2026 (<a href="https://devblogs.microsoft.com/foundry/whats-new-in-microsoft-foundry-july-august-2026/">source</a>).</p>
+
+  <div class="table-wrap"><table>
+    <thead><tr><th>Layer</th><th>Service</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Agent runtime</td><td>Microsoft Foundry Agent Service (hosted agents)</td><td>Managed runtime, tracing and evaluation out of the box</td></tr>
+      <tr><td>Orchestration</td><td>Microsoft Agent Framework 1.0 (Python)</td><td>Multi-agent pipeline: parser, author, tester, reviewer</td></tr>
+      <tr><td>Reasoning model</td><td>GPT-5.4 or Claude in Foundry</td><td>Strong code generation; pick per team access</td></tr>
+      <tr><td>Document parsing</td><td>Azure AI Document Intelligence</td><td>Extracts text, tables and numbered steps from PDF/Word</td></tr>
+      <tr><td>Sandbox</td><td>Azure Container Apps jobs (Linux) + one disposable Windows VM</td><td>Isolated, throwaway targets for test runs</td></tr>
+      <tr><td>Script quality gates</td><td>PSScriptAnalyzer, ansible-lint, shellcheck</td><td>Static checks before any execution</td></tr>
+      <tr><td>Script store</td><td>GitHub repo (one PR per runbook)</td><td>Versioning, diff review, audit trail</td></tr>
+      <tr><td>Approval</td><td>Teams Adaptive Card via Logic Apps</td><td>Engineer approves where they already work</td></tr>
+      <tr><td>Execution (post-approval)</td><td>Azure Automation runbooks / Ansible</td><td>Production-grade scheduled or on-demand runs</td></tr>
+      <tr><td>Metadata</td><td>Azure Cosmos DB</td><td>Runbook, step, test and approval records</td></tr>
+      <tr><td>Files</td><td>Azure Blob Storage</td><td>Uploaded runbooks, logs, test evidence</td></tr>
+      <tr><td>Web UI &amp; API</td><td>React on Azure Static Web Apps; backend API on Azure Functions</td><td>Upload, side-by-side review, dashboard</td></tr>
+      <tr><td>Security</td><td>Entra ID, Key Vault, managed identities</td><td>No secrets in code or prompts</td></tr>
+      <tr><td>Observability</td><td>Application Insights + Foundry tracing</td><td>Every agent step traceable for judges and auditors</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Core data model</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Entity</th><th>Key fields</th></tr></thead>
+    <tbody>
+      <tr><td>Runbook</td><td>id, title, source file, owner, status, risk tier</td></tr>
+      <tr><td>Step</td><td>runbook id, order, instruction text, target system, expected result, command</td></tr>
+      <tr><td>Script</td><td>runbook id, language, version, PR link, lint result</td></tr>
+      <tr><td>TestRun</td><td>script id, sandbox id, pass/fail per step, logs, duration</td></tr>
+      <tr><td>Approval</td><td>script id, reviewer, decision, comments, timestamp</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Main APIs</h3>
+  <ul>
+    <li><code>POST /runbooks</code>: upload a document, returns runbook id</li>
+    <li><code>GET /runbooks/{id}</code>: parsed steps, script, test results, status</li>
+    <li><code>POST /runbooks/{id}/regenerate</code>: retry with reviewer feedback</li>
+    <li><code>POST /runbooks/{id}/approve</code> and <code>/reject</code>: reviewer decision</li>
+    <li><code>GET /metrics</code>: conversion rate, time saved, runs executed</li>
+  </ul>
+</section>
+
+<!-- DESIGN -->
+<section id="design">
+  <h2>Design doc</h2>
+  <p><strong>Four specialist agents, each with one job, pass structured JSON to the next.</strong> Separate agents make each step testable, and the demo can show exactly where a conversion succeeded or failed.</p>
+
+  <h3>Agent roles</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Agent</th><th>Input</th><th>Output</th><th>Key rule</th></tr></thead>
+    <tbody>
+      <tr><td>Parser</td><td>Raw runbook text</td><td>Ordered steps: action, target, expected result, open questions</td><td>Never invent a step; flag anything ambiguous</td></tr>
+      <tr><td>Author</td><td>Parsed steps + target OS</td><td>Script with one function per step, logging, dry-run mode</td><td>Every step has a check that it worked</td></tr>
+      <tr><td>Tester</td><td>Script + sandbox</td><td>Pass/fail per step, logs, fix suggestions</td><td>Only runs in the sandbox, never real systems</td></tr>
+      <tr><td>Reviewer</td><td>Everything above</td><td>Summary card: what it does, risks, test evidence, confidence</td><td>Plain language a busy engineer reads in 1 minute</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Script conventions the Author must follow</h3>
+  <ol>
+    <li>Idempotent: running it twice does no harm.</li>
+    <li><code>-WhatIf</code> / <code>--check</code> dry-run mode by default.</li>
+    <li>Pre-checks before changing anything; stop on first failure.</li>
+    <li>Structured log line per step for the audit trail.</li>
+    <li>No credentials in the script; read from Key Vault at run time.</li>
+  </ol>
+
+  <h3>Safety guardrails</h3>
+  <ul>
+    <li>The agent never touches production. It only writes code and runs it in a disposable sandbox.</li>
+    <li>Scripts that use blocked commands (disk formatting, mass deletes, firewall-wide changes) fail the lint gate.</li>
+    <li>Ambiguous runbook steps go back to the engineer as questions, not guesses.</li>
+    <li>Retry cap: at most 3 fix-and-retest loops, then hand over with notes.</li>
+    <li>Nothing executes for real until a named engineer approves it.</li>
+  </ul>
+
+  <h3>Risk tiers decide how much review a script needs</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tier</th><th>Examples</th><th>Approval</th></tr></thead>
+    <tbody>
+      <tr><td>Low</td><td>Read-only checks, log collection, health reports</td><td>One engineer</td></tr>
+      <tr><td>Medium</td><td>Service restarts, cache clears, disk cleanup</td><td>One engineer + dry-run evidence</td></tr>
+      <tr><td>High</td><td>Config changes, user access, database failover</td><td>Two engineers, change ticket required</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>UI screens</h3>
+  <ol>
+    <li><strong>Upload:</strong> drag in a runbook, pick target OS and tier.</li>
+    <li><strong>Side-by-side review:</strong> original runbook step on the left, generated code on the right, and a test result badge for each step. This is the main screen of the demo.</li>
+    <li><strong>Questions:</strong> ambiguous steps the agent needs answered.</li>
+    <li><strong>Approve:</strong> summary card, test evidence, approve or reject with a comment (also in Teams).</li>
+    <li><strong>Impact dashboard:</strong> runbooks converted, runs executed, hours saved.</li>
+  </ol>
+</section>
+
+<!-- PLAN -->
+<section id="plan">
+  <h2>Hackathon plan</h2>
+  <p><strong>Aim for one polished workflow on 10 real runbooks rather than a broad platform.</strong> Judges remember a live demo that works and a before/after number.</p>
+
+  <h3>Scope</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>MVP (must ship)</th><th>Stretch (only if time allows)</th></tr></thead>
+    <tbody>
+      <tr><td>Upload PDF/Word runbook, parse into steps</td><td>Wiki/Confluence and SharePoint import</td></tr>
+      <tr><td>Generate PowerShell or Bash script</td><td>Ansible playbooks, multi-server targets</td></tr>
+      <tr><td>Lint + run in one Linux sandbox, pass/fail per step</td><td>Windows VM sandbox</td></tr>
+      <tr><td>Side-by-side review screen + approve/reject</td><td>Teams Adaptive Card approval</td></tr>
+      <tr><td>Metrics on 10 test runbooks</td><td>Live impact dashboard</td></tr>
+      <tr><td></td><td>Auto-trigger approved scripts from monitoring alerts</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Team roles (4–5 people)</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Role</th><th>Owns</th></tr></thead>
+    <tbody>
+      <tr><td>Agent lead</td><td>Parser, Author, Tester, Reviewer agents and prompts</td></tr>
+      <tr><td>Platform lead</td><td>Foundry setup, sandbox, storage, security</td></tr>
+      <tr><td>Frontend lead</td><td>Upload, side-by-side review, approval screens</td></tr>
+      <tr><td>Ops domain lead</td><td>Collects 10 real runbooks, validates scripts, times manual runs</td></tr>
+      <tr><td>Pitch lead (can double up)</td><td>Business case, ROI numbers, demo script, slides</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Build phases</h3>
+  <ol>
+    <li><strong>Prep (before the event):</strong> collect and anonymize 10 real runbooks; time a manual run of 3 of them; get Azure and Foundry access.</li>
+    <li><strong>Phase 1:</strong> Parser agent working on all 10 runbooks; sandbox runs a hello-world script.</li>
+    <li><strong>Phase 2:</strong> Author + Tester loop passing on at least 5 runbooks; UI upload and review screen.</li>
+    <li><strong>Phase 3:</strong> Approval flow, guardrails, metrics collected across all 10.</li>
+    <li><strong>Phase 4:</strong> Freeze features, rehearse the demo 3 times, record a backup video.</li>
+  </ol>
+
+  <h3>Demo script (5 minutes)</h3>
+  <ol>
+    <li><strong>The pain (30 s):</strong> show a real 12-step runbook and the manual time it takes.</li>
+    <li><strong>Upload (30 s):</strong> drop it into RunbookPilot.</li>
+    <li><strong>Watch it work (90 s):</strong> steps parsed, script written, sandbox tests turning green.</li>
+    <li><strong>Human in control (45 s):</strong> reviewer card, one ambiguous step flagged, approve.</li>
+    <li><strong>Run it (30 s):</strong> the approved script finishes in seconds.</li>
+    <li><strong>Proof (60 s):</strong> results across 10 runbooks and the yearly ROI for your account.</li>
+    <li><strong>Close (15 s):</strong> the pitch line.</li>
+  </ol>
+
+  <h3>How it maps to judging</h3>
+  <ul>
+    <li><strong>Track fit:</strong> manual effort replaced by automation, with measured before/after.</li>
+    <li><strong>Innovation:</strong> agents write <em>and test</em> the automation, not just suggest it.</li>
+    <li><strong>Feasibility:</strong> built on generally available Microsoft services, with human approval required.</li>
+    <li><strong>Business impact:</strong> hours saved, errors avoided, an audit trail, and reuse across accounts.</li>
+  </ul>
+
+  <h3>Risks and fallbacks</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Risk</th><th>Fallback</th></tr></thead>
+    <tbody>
+      <tr><td>Real runbooks can't leave the client environment</td><td>Anonymize, or rewrite 10 representative runbooks by hand</td></tr>
+      <tr><td>Sandbox setup eats the schedule</td><td>Use local Docker containers as the sandbox for the demo</td></tr>
+      <tr><td>Generated scripts fail too often</td><td>Narrow to one OS and one runbook category (e.g. Linux service ops)</td></tr>
+      <tr><td>Live demo breaks</td><td>Pre-recorded backup video of the full flow</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Open questions for the team</h3>
+  <ul>
+    <li>How long is the hackathon, and what are the exact judging criteria?</li>
+    <li>Which client account can provide real runbooks, and in what format?</li>
+    <li>Do we have Foundry model access (GPT-5.4 or Claude) in our Azure subscription?</li>
+  </ul>
+</section>
+
+<footer>
+  Sources: <a href="https://devblogs.microsoft.com/foundry/whats-new-in-microsoft-foundry-mar-2026/">What's new in Microsoft Foundry, March 2026</a> ·
+  <a href="https://devblogs.microsoft.com/foundry/whats-new-in-microsoft-foundry-july-august-2026/">What's new in Microsoft Foundry, July–August 2026</a>
+</footer>
+
+</div>
+</body>
+</html>

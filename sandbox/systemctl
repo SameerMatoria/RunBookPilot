@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Sandbox stand-in for systemctl (containers have no systemd). Supports the nginx service.
+quiet=0
+args=()
+for a in "$@"; do
+  case "$a" in
+    -q|--quiet) quiet=1 ;;
+    --no-pager|--full|-l) ;;
+    *) args+=("$a") ;;
+  esac
+done
+cmd="${args[0]:-}"
+svc="${args[1]:-}"
+svc="${svc%.service}"
+
+say() { [ "$quiet" = 1 ] || echo -e "$@"; }
+running() { pgrep -x nginx >/dev/null; }
+wait_stopped() { for _ in $(seq 1 50); do running || return 0; sleep 0.1; done; }
+
+if [ "$svc" != "nginx" ]; then
+  echo "Unit ${svc}.service could not be found." >&2
+  exit 4
+fi
+
+case "$cmd" in
+  is-active)
+    if running; then say active; exit 0; else say inactive; exit 3; fi ;;
+  status)
+    if running; then
+      say "● nginx.service - A high performance web server\n     Active: active (running)"; exit 0
+    else
+      say "○ nginx.service - A high performance web server\n     Active: inactive (dead)"; exit 3
+    fi ;;
+  start)    running || nginx ;;
+  stop)     if running; then nginx -s quit; wait_stopped; fi ;;
+  restart)  if running; then nginx -s quit; wait_stopped; fi; nginx ;;
+  reload)   nginx -s reload ;;
+  is-enabled) say enabled ;;
+  enable|disable) ;;
+  *) echo "systemctl (sandbox): unsupported command '$cmd'" >&2; exit 1 ;;
+esac
