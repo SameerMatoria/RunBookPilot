@@ -5,6 +5,7 @@ Manual minutes and run frequency come from each runbook (extracted by the Parser
 minutes is an assumption (an engineer triggers the approved script and checks its output).
 """
 from datetime import datetime
+from statistics import median
 
 from sqlalchemy import select
 
@@ -92,7 +93,8 @@ def compute() -> dict:
             "first_attempt": sum(1 for r in converted if r["attempts"] == 1),
             "approved": sum(1 for r in rows if r["status"] == "approved"),
             "questions_asked": sum(r["questions"] for r in rows),
-            "avg_minutes_to_automate": round(sum(timed) / len(timed), 1) if timed else None,
+            # Median, not mean: one runbook paused for hours (waiting on answers or an AI quota) would dominate a mean.
+            "median_minutes_to_automate": round(median(timed), 1) if timed else None,
             "hours_saved_per_year": round(sum(r["hours_saved_per_year"] or 0 for r in converted), 1),
             "manual_runs_per_year": round(sum((r["runs_per_month"] or 0) * 12 for r in converted)),
         },

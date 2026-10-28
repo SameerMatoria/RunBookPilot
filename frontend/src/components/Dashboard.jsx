@@ -83,7 +83,7 @@ export default function Dashboard() {
       <div className="tiles">
         <Tile value={`${t.converted} / ${t.processed}`} label="runbooks converted" sub={`${rate}% passed sandbox tests`} />
         <Tile value={`${t.first_attempt} / ${t.converted}`} label="passed on the first try" sub="the rest were fixed by the Tester loop" />
-        <Tile value={t.avg_minutes_to_automate != null ? `${fmt(t.avg_minutes_to_automate, 1)} min` : '–'} label="avg time to automate" sub="upload to approval-ready, vs days by hand" />
+        <Tile value={t.median_minutes_to_automate != null ? `${fmt(t.median_minutes_to_automate, 1)} min` : '–'} label="typical time to automate" sub="median, upload to approval-ready, vs days by hand" />
         <Tile value={fmt(t.hours_saved_per_year)} label="engineer hours saved / year" sub={`across ${fmt(t.manual_runs_per_year)} manual runs a year`} />
       </div>
 
