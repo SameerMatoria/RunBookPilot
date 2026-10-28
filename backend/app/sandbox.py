@@ -3,6 +3,7 @@
 Isolation: fresh container per run, removed afterwards, no network, capped CPU/memory/processes,
 hard timeout. The script never touches the host or any real server.
 """
+import hashlib
 import re
 import shutil
 import subprocess
@@ -12,8 +13,20 @@ from pathlib import Path
 
 from . import config
 
-IMAGE = "runbookpilot-sandbox:latest"
 SANDBOX_DIR = config.PROJECT_DIR / "sandbox"
+
+
+def _image_tag() -> str:
+    """Tag the image with a fingerprint of sandbox/, so editing those files triggers a rebuild."""
+    digest = hashlib.sha256()
+    for path in sorted(SANDBOX_DIR.rglob("*")):
+        if path.is_file():
+            digest.update(path.name.encode())
+            digest.update(path.read_bytes().replace(b"\r\n", b"\n"))
+    return f"runbookpilot-sandbox:{digest.hexdigest()[:12]}"
+
+
+IMAGE = _image_tag()
 TIMEOUT_SECONDS = 120
 STEP_LINE = re.compile(r"^RBP_STEP\|(\d+)\|(START|OK|SKIP|FAIL)\|(.*)$")
 
@@ -50,7 +63,7 @@ def status() -> dict:
         proc = _docker("info", "--format", "{{.ServerVersion}}", timeout=20)
     except (SandboxError, subprocess.TimeoutExpired) as e:
         return {"ready": False, "detail": str(e)}
-    if proc.returncode != 0:
+    if proc.returncode != 0 or not proc.stdout.strip():
         return {"ready": False, "detail": "Docker engine is not running. Start Docker Desktop."}
     has_image = _docker("image", "inspect", IMAGE, timeout=20).returncode == 0
     return {"ready": True, "engine": proc.stdout.strip(), "image_built": has_image}
@@ -69,8 +82,8 @@ def run_script(script: str, execute: bool) -> dict:
     ensure_image()
     name = f"rbp-test-{uuid.uuid4().hex[:8]}"
     mode_arg = "--execute" if execute else ""
-    # Start nginx like a real server would have it, then run the script from stdin.
-    entry = f'nginx; cat > /tmp/runbook.sh; bash /tmp/runbook.sh {mode_arg}'
+    # Boot the services like a real server would have them, then run the script from stdin.
+    entry = f'sandbox-init; cat > /tmp/runbook.sh; bash /tmp/runbook.sh {mode_arg}'
     started = time.monotonic()
     try:
         proc = _docker(

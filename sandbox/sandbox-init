@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Boots the sandbox "server": starts the services a real app server would have running.
+systemctl start nginx
+systemctl start myapp

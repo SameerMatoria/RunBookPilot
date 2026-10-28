@@ -3,6 +3,7 @@ import json
 import re
 
 from ..llm import chat_text
+from .common import compact_json, compact_script, compact_steps
 
 SYSTEM_PROMPT = """You are the Author agent in RunbookPilot. You turn parsed IT runbook steps into a
 Bash script that an operations team can trust. A Tester agent will run it in a sandbox and a human
@@ -14,6 +15,10 @@ Script rules (all mandatory):
    with `--execute`. Every command that changes the system goes through a `run` helper that only
    prints the command in dry-run mode. Read-only checks (status, config tests like `nginx -t`,
    disk usage, health checks) must NOT go through `run`; they always really run, in both modes.
+   But a check that verifies the RESULT of a change (a file was created, a config line is now
+   present, a user now exists, permissions were changed) cannot pass in dry-run mode because the
+   change was not made: in dry-run mode such checks must log SKIP ("would verify ...") instead of
+   failing. Likewise, rollback/restore logic only runs when a real change failed, never in dry-run.
 3. One function per runbook step, named `step_<order>_<short_name>`, called in order from `main`.
 4. Every step function checks its expected result after acting and fails with a clear message if
    the check fails. Add pre-checks before changing anything.
@@ -72,9 +77,10 @@ def write_script(parsed: dict, feedback: str | None = None, previous_script: str
         "title": parsed.get("title"),
         "target_os": parsed.get("target_os"),
         "risk_tier": parsed.get("risk_tier"),
-        "steps": parsed.get("steps", []),
+        "steps": compact_steps(parsed.get("steps", [])),
     }
-    prompt = "Parsed runbook:\n" + json.dumps(payload, indent=2)
+    prompt = "Parsed runbook: " + compact_json(payload)
     if feedback:
-        prompt += f"\n\nPrevious script:\n```bash\n{previous_script}\n```\n\nFix it based on this feedback:\n{feedback}"
-    return chat_text(SYSTEM_PROMPT, prompt, parse=_parse_reply)
+        prompt += (f"\n\nPrevious script (comments removed to save space):\n```bash\n{compact_script(previous_script)}\n```"
+                   f"\n\nFix it based on this feedback:\n{feedback}")
+    return chat_text(SYSTEM_PROMPT, prompt, parse=_parse_reply, agent="author")

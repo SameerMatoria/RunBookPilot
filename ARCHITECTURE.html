@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RunbookPilot Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f8;
+    --panel: #ffffff;
+    --border: #e3e6ec;
+    --text: #161a23;
+    --muted: #687083;
+    --accent: #3d5afe;
+    --accent-soft: #eef1ff;
+    --good: #12805c;
+    --good-soft: #e5f6ee;
+    --warn: #b25e00;
+    --warn-soft: #fff3e0;
+    --bad: #c62839;
+    --bad-soft: #fdecee;
+    --teal: #00796b;
+    --teal-soft: #e0f2f1;
+    --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1218;
+      --panel: #171b23;
+      --border: #2a303c;
+      --text: #e8ebf1;
+      --muted: #98a0b0;
+      --accent: #7b8cff;
+      --accent-soft: #1f2540;
+      --good: #4cc38a;
+      --good-soft: #13291f;
+      --warn: #f0a547;
+      --warn-soft: #2d2213;
+      --bad: #f2707e;
+      --bad-soft: #2e1519;
+      --teal: #4fd1c0;
+      --teal-soft: #102a28;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1218;
+    --panel: #171b23;
+    --border: #2a303c;
+    --text: #e8ebf1;
+    --muted: #98a0b0;
+    --accent: #7b8cff;
+    --accent-soft: #1f2540;
+    --good: #4cc38a;
+    --good-soft: #13291f;
+    --warn: #f0a547;
+    --warn-soft: #2d2213;
+    --bad: #f2707e;
+    --bad-soft: #2e1519;
+    --teal: #4fd1c0;
+    --teal-soft: #102a28;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 40px 16px 80px; }
+
+  header { display: flex; align-items: center; gap: 14px; }
+  .mark {
+    display: grid; place-items: center; flex: none;
+    width: 44px; height: 44px; border-radius: 11px;
+    background: linear-gradient(135deg, #3d5afe, #7c4dff);
+    color: #fff; font-weight: 700; font-size: 15px;
+  }
+  h1 { margin: 0; font-size: 28px; letter-spacing: -0.01em; line-height: 1.2; }
+  h2 { font-size: 20px; margin: 44px 0 6px; letter-spacing: -0.01em; }
+  h3 { font-size: 15px; margin: 0 0 4px; }
+  p { margin: 8px 0; }
+  .lede { color: var(--muted); margin: 12px 0 0; max-width: 700px; }
+  .sub { color: var(--muted); margin: 0 0 16px; max-width: 720px; }
+  code {
+    font-family: var(--mono); font-size: 12.5px;
+    background: var(--accent-soft); color: var(--text);
+    padding: 1px 6px; border-radius: 5px;
+  }
+
+  .pitch {
+    margin-top: 24px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    padding: 18px 22px;
+    font-size: 17px;
+    font-weight: 500;
+  }
+  .pitch small { display: block; color: var(--muted); font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+  }
+
+  /* ---------- diagram ---------- */
+  .diagram-scroll { overflow-x: auto; }
+  .diagram { display: block; width: 100%; min-width: 640px; height: auto; }
+  .diagram text { font-family: Inter, system-ui, sans-serif; }
+  .d-layer { fill: none; stroke: var(--border); stroke-dasharray: 4 4; }
+  .d-layer-label { fill: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; }
+  .d-box { fill: var(--panel); stroke: var(--border); stroke-width: 1.5; }
+  .d-person { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.5; }
+  .d-agent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  .d-tool { fill: var(--teal-soft); stroke: var(--teal); stroke-width: 1.5; }
+  .d-title { fill: var(--text); font-size: 14px; font-weight: 600; }
+  .d-text { fill: var(--muted); font-size: 11.5px; }
+  .d-arrow { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  .d-loop { stroke: var(--bad); stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; }
+  .d-loop-text { fill: var(--bad); font-size: 11.5px; font-weight: 600; }
+  .d-dash { stroke: var(--teal); stroke-width: 1.3; fill: none; stroke-dasharray: 3 3; }
+  .d-head { fill: var(--muted); }
+  .d-head-bad { fill: var(--bad); }
+  .d-head-teal { fill: var(--teal); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+  .legend span::before {
+    content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+    margin-right: 6px; vertical-align: -1px; border: 1.5px solid;
+  }
+  .lg-person::before { background: var(--warn-soft); border-color: var(--warn) !important; }
+  .lg-agent::before { background: var(--accent-soft); border-color: var(--accent) !important; }
+  .lg-tool::before { background: var(--teal-soft); border-color: var(--teal) !important; }
+  .lg-loop::before { background: var(--bad-soft); border-color: var(--bad) !important; border-style: dashed !important; }
+
+  /* ---------- flow ---------- */
+  .flow { list-style: none; margin: 0; padding: 0; position: relative; }
+  .flow::before {
+    content: ''; position: absolute; left: 19px; top: 20px; bottom: 20px;
+    width: 2px; background: var(--border);
+  }
+  .flow li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .flow .n {
+    z-index: 1;
+    width: 40px; height: 40px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-weight: 700; color: #fff;
+    background: var(--accent);
+  }
+  .flow .n.person { background: var(--warn); }
+  .flow .n.tool { background: var(--teal); }
+  .flow .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+  }
+  .who {
+    display: inline-block; font-size: 11.5px; font-weight: 600;
+    padding: 1px 8px; border-radius: 5px; margin-bottom: 4px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .who.person { background: var(--warn-soft); color: var(--warn); }
+  .who.tool { background: var(--teal-soft); color: var(--teal); }
+  .say {
+    margin-top: 8px; font-size: 13.5px; color: var(--muted);
+    border-left: 3px solid var(--border); padding-left: 10px; font-style: italic;
+  }
+  .where { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+
+  /* ---------- guardrails ---------- */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .guard {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .guard .icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: grid; place-items: center; margin-bottom: 10px;
+    background: var(--good-soft); color: var(--good); font-weight: 700;
+  }
+  .guard p { font-size: 14px; color: var(--muted); margin: 4px 0 0; }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12.5px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  .arrow { color: var(--muted); }
+
+  /* ---------- Q&A ---------- */
+  details {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 18px; margin-bottom: 10px;
+  }
+  summary { cursor: pointer; font-weight: 600; }
+  details[open] summary { margin-bottom: 6px; }
+  details p { color: var(--muted); margin: 6px 0 0; }
+
+  footer { color: var(--muted); font-size: 13px; margin-top: 40px; text-align: center; }
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    td:first-child { white-space: normal; }
+  }
+  @media (max-width: 600px) {
+    .wrap { padding-top: 24px; }
+    h1 { font-size: 23px; }
+    .pitch { font-size: 15.5px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="mark">RP</div>
+    <h1>How RunbookPilot works</h1>
+  </header>
+  <p class="lede">The architecture in one page, for explaining it during the demo: what each part does, how a runbook flows through the system, and what keeps it safe.</p>
+
+  <div class="pitch">
+    <small>The one-liner</small>
+    Every ops team has hundreds of runbooks nobody has time to automate. RunbookPilot reads a runbook, writes the script, proves it works in a sandbox, and an engineer still signs off.
+  </div>
+
+  <!-- ================= ARCHITECTURE ================= -->
+  <h2>The big picture</h2>
+  <p class="sub">Five layers. The engineer only talks to the web app. Four specialist AI agents do the work behind the API, and only the Tester ever runs code, inside a throwaway sandbox.</p>
+
+  <div class="panel">
+    <div class="diagram-scroll">
+      <svg class="diagram" viewBox="0 0 880 610" role="img" aria-labelledby="dg-title dg-desc">
+        <title id="dg-title">RunbookPilot architecture</title>
+        <desc id="dg-desc">An engineer uses the React web app, which calls the FastAPI backend. The backend runs four AI agents in order: Parser, Author, Tester and Reviewer. If a sandbox test fails, the Tester sends it back to the Author, up to three times. The agents use an AI model, a lint gate, a Docker sandbox and storage.</desc>
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head"/></marker>
+          <marker id="ah-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head-bad"/></marker>
+          <marker id="ah-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="d-head-teal"/></marker>
+        </defs>
+
+        <!-- Layer 1: people -->
+        <text class="d-layer-label" x="20" y="30">PEOPLE</text>
+        <rect class="d-person" x="290" y="14" width="300" height="56" rx="10"/>
+        <text class="d-title" x="440" y="38" text-anchor="middle">Ops engineer</text>
+        <text class="d-text" x="440" y="57" text-anchor="middle">uploads · answers questions · approves</text>
+
+        <line class="d-arrow" x1="440" y1="72" x2="440" y2="104" marker-start="url(#ah)" marker-end="url(#ah)"/>
+
+        <!-- Layer 2: web app -->
+        <text class="d-layer-label" x="20" y="130">WEB APP</text>
+        <rect class="d-box" x="130" y="108" width="620" height="62" rx="10"/>
+        <text class="d-title" x="440" y="133" text-anchor="middle">React web app</text>
+        <text class="d-text" x="440" y="154" text-anchor="middle">Upload · Questions · Side-by-side review · Live agent activity · Approve / reject</text>
+
+        <line class="d-arrow" x1="440" y1="172" x2="440" y2="204" marker-start="url(#ah)" marker-end="url(#ah)"/>
+
+        <!-- Layer 3: API -->
+        <text class="d-layer-label" x="20" y="230">BACKEND</text>
+        <rect class="d-box" x="130" y="208" width="620" height="62" rx="10"/>
+        <text class="d-title" x="440" y="233" text-anchor="middle">FastAPI backend</text>
+        <text class="d-text" x="440" y="254" text-anchor="middle">Starts the agents in the background · records every step and decision · enforces approval rules</text>
+
+        <line class="d-arrow" x1="440" y1="272" x2="440" y2="304" marker-end="url(#ah)"/>
+
+        <!-- Layer 4: agents -->
+        <rect class="d-layer" x="20" y="308" width="840" height="150" rx="12"/>
+        <text class="d-layer-label" x="36" y="330">AI AGENT PIPELINE</text>
+
+        <rect class="d-agent" x="44" y="344" width="170" height="64" rx="10"/>
+        <text class="d-title" x="129" y="369" text-anchor="middle">1 · Parser</text>
+        <text class="d-text" x="129" y="389" text-anchor="middle">finds steps + questions</text>
+
+        <rect class="d-agent" x="250" y="344" width="170" height="64" rx="10"/>
+        <text class="d-title" x="335" y="369" text-anchor="middle">2 · Author</text>
+        <text class="d-text" x="335" y="389" text-anchor="middle">steps → Bash script</text>
+
+        <rect class="d-agent" x="456" y="344" width="170" height="64" rx="10"/>
+        <text class="d-title" x="541" y="369" text-anchor="middle">3 · Tester</text>
+        <text class="d-text" x="541" y="389" text-anchor="middle">runs it, diagnoses failures</text>
+
+        <rect class="d-agent" x="662" y="344" width="170" height="64" rx="10"/>
+        <text class="d-title" x="747" y="369" text-anchor="middle">4 · Reviewer</text>
+        <text class="d-text" x="747" y="389" text-anchor="middle">writes the summary card</text>
+
+        <line class="d-arrow" x1="216" y1="376" x2="246" y2="376" marker-end="url(#ah)"/>
+        <line class="d-arrow" x1="422" y1="376" x2="452" y2="376" marker-end="url(#ah)"/>
+        <line class="d-arrow" x1="628" y1="376" x2="658" y2="376" marker-end="url(#ah)"/>
+
+        <path class="d-loop" d="M541,410 C541,446 335,446 335,412" marker-end="url(#ah-bad)"/>
+        <text class="d-loop-text" x="438" y="452" text-anchor="middle">test failed → fix and retest (max 3)</text>
+
+        <!-- Layer 5: tools -->
+        <text class="d-layer-label" x="20" y="500">SERVICES</text>
+
+        <line class="d-dash" x1="129" y1="458" x2="129" y2="518" marker-end="url(#ah-teal)"/>
+        <line class="d-dash" x1="335" y1="458" x2="335" y2="518" marker-end="url(#ah-teal)"/>
+        <line class="d-dash" x1="541" y1="458" x2="541" y2="518" marker-end="url(#ah-teal)"/>
+        <line class="d-dash" x1="747" y1="458" x2="747" y2="518" marker-end="url(#ah-teal)"/>
+
+        <rect class="d-tool" x="44" y="522" width="170" height="74" rx="10"/>
+        <text class="d-title" x="129" y="546" text-anchor="middle">AI model</text>
+        <text class="d-text" x="129" y="565" text-anchor="middle">Groq · gpt-oss-120b</text>
+        <text class="d-text" x="129" y="581" text-anchor="middle">used by all 4 agents</text>
+
+        <rect class="d-tool" x="250" y="522" width="170" height="74" rx="10"/>
+        <text class="d-title" x="335" y="546" text-anchor="middle">Lint gate</text>
+        <text class="d-text" x="335" y="565" text-anchor="middle">blocked commands</text>
+        <text class="d-text" x="335" y="581" text-anchor="middle">+ ShellCheck</text>
+
+        <rect class="d-tool" x="456" y="522" width="170" height="74" rx="10"/>
+        <text class="d-title" x="541" y="546" text-anchor="middle">Docker sandbox</text>
+        <text class="d-text" x="541" y="565" text-anchor="middle">fresh Linux server per run</text>
+        <text class="d-text" x="541" y="581" text-anchor="middle">no network · auto-deleted</text>
+
+        <rect class="d-tool" x="662" y="522" width="170" height="74" rx="10"/>
+        <text class="d-title" x="747" y="546" text-anchor="middle">Storage</text>
+        <text class="d-text" x="747" y="565" text-anchor="middle">runbooks, scripts, test logs,</text>
+        <text class="d-text" x="747" y="581" text-anchor="middle">approvals (audit trail)</text>
+      </svg>
+    </div>
+    <div class="legend">
+      <span class="lg-person">Human</span>
+      <span class="lg-agent">AI agent</span>
+      <span class="lg-tool">Supporting service</span>
+      <span class="lg-loop">Self-correction loop</span>
+    </div>
+  </div>
+
+  <!-- ================= FLOW ================= -->
+  <h2>What happens when you upload a runbook</h2>
+  <p class="sub">The same seven stages as the progress bar at the top of the app. Each card says what happens and gives one line you can say while it runs.</p>
+
+  <ol class="flow">
+    <li>
+      <div class="n person">1</div>
+      <div class="card">
+        <span class="who person">Engineer</span>
+        <h3>Upload</h3>
+        <p>Drag in a PDF, Word, Markdown or text runbook. The backend pulls the text out of the file and starts the agents in the background, so the page stays live.</p>
+        <div class="say">"This is a real runbook. Today someone follows it by hand, step by step."</div>
+      </div>
+    </li>
+    <li>
+      <div class="n">2</div>
+      <div class="card">
+        <span class="who">Parser agent</span>
+        <h3>Extract the steps</h3>
+        <p>Turns the document into an ordered list: what to do, where, the exact command, and what success looks like. It sets a risk tier (low, medium or high). It is told never to invent a step.</p>
+        <div class="where">Code: <code>backend/app/agents/parser.py</code></div>
+        <div class="say">"It understood all 8 steps and rated this medium risk because it restarts a service."</div>
+      </div>
+    </li>
+    <li>
+      <div class="n person">3</div>
+      <div class="card">
+        <span class="who person">Engineer</span>
+        <h3>Answer questions</h3>
+        <p>Vague steps like "make sure everything looks OK" are flagged. The engineer answers, and the answers go into the script.</p>
+        <div class="say">"It doesn't guess. When the runbook is unclear, it asks us, just like a new team member would."</div>
+      </div>
+    </li>
+    <li>
+      <div class="n">4</div>
+      <div class="card">
+        <span class="who">Author agent</span>
+        <h3>Write the script</h3>
+        <p>Writes a Bash script with one function per step. Every step checks its own result, the script is dry-run by default, it stops on the first failure, and it writes one log line per step. Then the <strong>lint gate</strong> blocks anything dangerous (formatting disks, mass deletes, firewall wipes, hard-coded passwords) and ShellCheck catches bugs.</p>
+        <div class="where">Code: <code>backend/app/agents/author.py</code>, <code>backend/app/lint.py</code></div>
+        <div class="say">"Look at the side-by-side view: each runbook step on the left, the exact code for it on the right."</div>
+      </div>
+    </li>
+    <li>
+      <div class="n tool">5</div>
+      <div class="card">
+        <span class="who tool">Tester agent + sandbox</span>
+        <h3>Prove it works</h3>
+        <p>Each test starts a brand-new Linux server in Docker, with nginx running like a real app server. The script runs twice: first as a dry run, then for real with <code>--execute</code>. Each step reports pass, skip or fail. If it fails, the Tester reads the logs, explains the cause, and the Author fixes it. That loop runs up to 3 times, then hands over to a human.</p>
+        <div class="where">Code: <code>backend/app/pipeline.py</code>, <code>backend/app/sandbox.py</code>, <code>sandbox/</code></div>
+        <div class="say">"These green badges aren't the AI's opinion. The script actually ran, restarted nginx, and got a 200 from the health page."</div>
+      </div>
+    </li>
+    <li>
+      <div class="n">6</div>
+      <div class="card">
+        <span class="who">Reviewer agent</span>
+        <h3>Summarise for a busy engineer</h3>
+        <p>A one-minute card: what it does, what it changes, risks with mitigations, confidence, and, importantly, <strong>what the sandbox did not test</strong>.</p>
+        <div class="where">Code: <code>backend/app/agents/reviewer.py</code></div>
+        <div class="say">"It's honest about its limits. It tells us the log-cleanup branch never ran because the disk wasn't full."</div>
+      </div>
+    </li>
+    <li>
+      <div class="n person">7</div>
+      <div class="card">
+        <span class="who person">Engineer</span>
+        <h3>Approve or reject</h3>
+        <p>Approve with your name, and the script joins the automation library. Reject with a comment, and it goes back to the Author with your feedback. High-risk scripts need two different engineers. Every decision is recorded.</p>
+        <div class="say">"Nothing touches a real server until a named engineer approves it."</div>
+      </div>
+    </li>
+  </ol>
+
+  <!-- ================= SAFETY ================= -->
+  <h2>After approval: running on real servers</h2>
+  <p class="sub">Approval is not the end. Operators run the approved script on managed servers, by hand, on a schedule, or when a monitoring alert fires. The same safety rules apply every time.</p>
+
+  <ol class="flow">
+    <li>
+      <div class="n person">A</div>
+      <div class="card">
+        <span class="who person">Admin</span>
+        <h3>Register servers once</h3>
+        <p>Add a credential (SSH key or password) and a server. The credential is encrypted before it is stored and can never be read back through the app. The first <strong>Test connection</strong> pins the server's SSH identity (host key); after that, a machine presenting a different identity is refused.</p>
+        <div class="where">Code: <code>backend/app/routes/servers.py</code>, <code>backend/app/ssh.py</code>, <code>backend/app/secrets_store.py</code></div>
+        <div class="say">"It won't send a script to an impostor server, and nobody, not even an admin, can read the stored passwords."</div>
+      </div>
+    </li>
+    <li>
+      <div class="n tool">B</div>
+      <div class="card">
+        <span class="who tool">Operator + worker</span>
+        <h3>Run the approved version only</h3>
+        <p>Only the exact approved script version runs (its SHA-256 fingerprint is recorded). Execute always does a dry run first and stops if that fails. High-risk scripts need a change ticket. Output streams live; every step reports pass, skip or fail; the script file is removed from the server afterwards.</p>
+        <div class="where">Code: <code>backend/app/executor.py</code>, <code>backend/app/runs.py</code></div>
+        <div class="say">"Same green badges as the sandbox, but this time on a real server, with the full output and who started it."</div>
+      </div>
+    </li>
+    <li>
+      <div class="n tool">C</div>
+      <div class="card">
+        <span class="who tool">Schedules and alerts</span>
+        <h3>Hands-off runs</h3>
+        <p>A schedule (cron) or a webhook from the monitoring tool starts the script automatically, with a cooldown so an alert storm doesn't run it fifty times. High-risk scripts can never auto-execute from an alert.</p>
+        <div class="say">"Disk-full alert at 3 a.m.? The approved cleanup runs and the on-call engineer sleeps."</div>
+      </div>
+    </li>
+  </ol>
+
+  <h2>Who can do what</h2>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Role</th><th>Can</th></tr></thead>
+      <tbody>
+        <tr><td>Submitter</td><td>Upload runbooks, answer the agents' questions</td></tr>
+        <tr><td>Approver</td><td>Approve or reject scripts, but never their own uploads; high-risk needs two different approvers</td></tr>
+        <tr><td>Operator</td><td>Run approved scripts on servers, set up schedules and alert triggers</td></tr>
+        <tr><td>Admin</td><td>Everything, plus users, servers, credentials and the audit log</td></tr>
+      </tbody>
+    </table>
+    <p class="sub" style="margin:12px 0 0">Sign-in with Microsoft Entra ID or local accounts. Every sign-in, upload, approval, run and change is written to the audit log with who did it and from where.</p>
+  </div>
+
+  <h2>Six layers of safety</h2>
+  <p class="sub">The question every judge will ask: "What if the AI gets it wrong?" The answer is that no single layer has to be perfect.</p>
+
+  <div class="grid">
+    <div class="guard">
+      <div class="icon">1</div>
+      <h3>Asks, never guesses</h3>
+      <p>The Parser flags unclear steps as questions instead of inventing what they mean.</p>
+    </div>
+    <div class="guard">
+      <div class="icon">2</div>
+      <h3>Dry run by default</h3>
+      <p>Scripts only print what they would change unless explicitly run with <code>--execute</code>.</p>
+    </div>
+    <div class="guard">
+      <div class="icon">3</div>
+      <h3>Lint gate</h3>
+      <p>Blocks destructive commands and hard-coded passwords before anything runs, even in the sandbox.</p>
+    </div>
+    <div class="guard">
+      <div class="icon">4</div>
+      <h3>Isolated sandbox</h3>
+      <p>A fresh container for every run, no network, capped CPU and memory, a 2-minute time limit, deleted afterwards.</p>
+    </div>
+    <div class="guard">
+      <div class="icon">5</div>
+      <h3>Retry cap</h3>
+      <p>At most 3 automatic fixes, then a human takes over. The AI can't loop forever or fake a pass.</p>
+    </div>
+    <div class="guard">
+      <div class="icon">6</div>
+      <h3>Human approval</h3>
+      <p>A named engineer signs off; high-risk scripts need two. Every step and decision is logged.</p>
+    </div>
+  </div>
+
+  <!-- ================= TECH ================= -->
+  <h2>Prototype today, Azure in production</h2>
+  <p class="sub">The prototype runs on a laptop with free tools. Each piece maps one-to-one to an Azure service from the blueprint, so moving to production means swapping parts, not rebuilding.</p>
+
+  <div class="panel">
+    <table>
+      <thead><tr><th>Part</th><th>Prototype (today)</th><th></th><th>Production (Azure)</th></tr></thead>
+      <tbody>
+        <tr><td>AI model</td><td>Groq free tier (gpt-oss-120b)</td><td class="arrow">→</td><td>Azure AI Foundry. It's a one-line config change, because the code speaks the standard OpenAI-style API.</td></tr>
+        <tr><td>Agents</td><td>4 Python agents with a fix loop</td><td class="arrow">→</td><td>Foundry Agent Service + Microsoft Agent Framework</td></tr>
+        <tr><td>Document reading</td><td>pypdf, python-docx</td><td class="arrow">→</td><td>Azure AI Document Intelligence</td></tr>
+        <tr><td>Sandbox</td><td>Docker on the laptop</td><td class="arrow">→</td><td>Azure Container Apps jobs (+ a Windows VM for PowerShell)</td></tr>
+        <tr><td>Storage</td><td>Postgres (Docker) + a job queue in Postgres</td><td class="arrow">→</td><td>Azure Database for PostgreSQL</td></tr>
+        <tr><td>Sign-in</td><td>Local accounts + Entra ID (ready)</td><td class="arrow">→</td><td>Entra ID with app roles</td></tr>
+        <tr><td>Script history</td><td>Versions kept per runbook</td><td class="arrow">→</td><td>GitHub repo, one pull request per runbook</td></tr>
+        <tr><td>Approval</td><td>Web app</td><td class="arrow">→</td><td>Web app + Teams adaptive card</td></tr>
+        <tr><td>Running for real</td><td>SSH from the worker; credentials encrypted with a master key</td><td class="arrow">→</td><td>Same, with the master key in Key Vault</td></tr>
+        <tr><td>Web + API</td><td>React (Vite) + FastAPI</td><td class="arrow">→</td><td>Static Web Apps + Azure Functions</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ================= Q&A ================= -->
+  <h2>Likely judge questions</h2>
+  <p class="sub">Short answers you can give with confidence.</p>
+
+  <details>
+    <summary>What if the AI writes a dangerous command?</summary>
+    <p>Three things stop it. The lint gate blocks destructive commands before anything runs. The sandbox is isolated, has no network, and is deleted after every run. And nothing reaches a real server without a named engineer approving it.</p>
+  </details>
+  <details>
+    <summary>What if the AI makes up steps that aren't in the runbook?</summary>
+    <p>The Parser is told never to invent steps, and unclear ones become questions for the engineer. The side-by-side screen maps every line of code back to a runbook step, so anything extra is easy to spot during review.</p>
+  </details>
+  <details>
+    <summary>How do you know the script actually works?</summary>
+    <p>It really runs in a fresh Linux server, as a dry run and then for real. Each step writes its own pass/skip/fail line, and those lines drive the green and red badges. The app shows the actual sandbox output, not the AI's opinion.</p>
+  </details>
+  <details>
+    <summary>Why four agents instead of one?</summary>
+    <p>Each one has a single job and can be tested on its own. When a conversion fails, you can see exactly where: parsing, writing, testing or review. The Tester and Author also check each other's work.</p>
+  </details>
+  <details>
+    <summary>Does it run on real servers?</summary>
+    <p>Yes. Operators run approved scripts over SSH, by hand, on a schedule or from a monitoring alert. Only the approved version runs, a dry run always comes first, server identities are pinned, credentials are encrypted, and every run is logged with its full output.</p>
+  </details>
+  <details>
+    <summary>Which AI model do you use, and what does it cost?</summary>
+    <p>The prototype uses a free open model on Groq. The code works with any OpenAI-compatible model, so production would use Azure AI Foundry, which is a configuration change, not new code.</p>
+  </details>
+  <details>
+    <summary>What about Windows servers and PowerShell?</summary>
+    <p>The prototype focuses on Linux and Bash to do one thing well. The same design extends to PowerShell with a Windows sandbox VM and PSScriptAnalyzer as the lint gate. That's on the roadmap.</p>
+  </details>
+  <details>
+    <summary>What's the business impact?</summary>
+    <p>Two effects. Each automated run saves engineer time and removes typos and skipped steps. And converting a runbook drops from days to minutes, so the long tail of rarely automated runbooks becomes worth doing. Hours saved per year = Σ (manual minutes − automated minutes) × runs per year ÷ 60.</p>
+  </details>
+
+  <footer>RunbookPilot · Kyndryl Hackathon · Track 01: Intelligent IT Services</footer>
+</div>
+</body>
+</html>

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Sandbox stand-in for systemctl (containers have no systemd). Supports the nginx service.
+# Sandbox stand-in for systemctl (containers have no systemd).
+# Supports two services: nginx (port 80) and myapp (port 8080, its own nginx instance).
 quiet=0
 args=()
 for a in "$@"; do
@@ -14,28 +15,37 @@ svc="${args[1]:-}"
 svc="${svc%.service}"
 
 say() { [ "$quiet" = 1 ] || echo -e "$@"; }
-running() { pgrep -x nginx >/dev/null; }
-wait_stopped() { for _ in $(seq 1 50); do running || return 0; sleep 0.1; done; }
 
-if [ "$svc" != "nginx" ]; then
-  echo "Unit ${svc}.service could not be found." >&2
-  exit 4
-fi
+case "$svc" in
+  nginx) pidfile=/run/nginx.pid; ctl=(nginx); desc="A high performance web server" ;;
+  myapp) pidfile=/run/myapp.pid; ctl=(nginx -c /etc/myapp/nginx.conf); desc="MyApp application service" ;;
+  *)
+    if [ "$cmd" = "list-units" ] || [ "$cmd" = "--failed" ]; then
+      echo "nginx.service loaded active running"; echo "myapp.service loaded active running"; exit 0
+    fi
+    echo "Unit ${svc}.service could not be found." >&2
+    exit 4 ;;
+esac
+
+running() { [ -s "$pidfile" ] && [ -d "/proc/$(cat "$pidfile")" ]; }  # works for non-root users too, like real systemctl
+wait_stopped() { for _ in $(seq 1 50); do running || return 0; sleep 0.1; done; }
+start() { running || "${ctl[@]}"; }
+stop() { if running; then "${ctl[@]}" -s quit; wait_stopped; fi; rm -f "$pidfile"; }
 
 case "$cmd" in
   is-active)
     if running; then say active; exit 0; else say inactive; exit 3; fi ;;
   status)
     if running; then
-      say "● nginx.service - A high performance web server\n     Active: active (running)"; exit 0
+      say "● ${svc}.service - ${desc}\n     Active: active (running)\n   Main PID: $(cat "$pidfile")"; exit 0
     else
-      say "○ nginx.service - A high performance web server\n     Active: inactive (dead)"; exit 3
+      say "○ ${svc}.service - ${desc}\n     Active: inactive (dead)"; exit 3
     fi ;;
-  start)    running || nginx ;;
-  stop)     if running; then nginx -s quit; wait_stopped; fi ;;
-  restart)  if running; then nginx -s quit; wait_stopped; fi; nginx ;;
-  reload)   nginx -s reload ;;
+  start)    start ;;
+  stop)     stop ;;
+  restart)  stop; start ;;
+  reload)   if running; then "${ctl[@]}" -s reload; else echo "${svc} is not running" >&2; exit 1; fi ;;
   is-enabled) say enabled ;;
-  enable|disable) ;;
+  enable|disable|daemon-reload) ;;
   *) echo "systemctl (sandbox): unsupported command '$cmd'" >&2; exit 1 ;;
 esac

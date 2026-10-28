@@ -3,6 +3,8 @@ import { api, BUSY } from '../api.js'
 import { clockTime, RiskBadge, StatusChip } from './common.jsx'
 import { ApprovalPanel, FailurePanel, QuestionsPanel, ReviewCard } from './Panels.jsx'
 import StepReview from './StepReview.jsx'
+import RunPanel from './RunPanel.jsx'
+import { useSession } from '../session.jsx'
 
 const STAGES = ['Upload', 'Parse', 'Questions', 'Script', 'Sandbox test', 'Review', 'Approve']
 
@@ -11,6 +13,7 @@ function pipelineState(record) {
   const hadQuestions = (record.parsed?.steps ?? []).some((s) => s.ambiguous)
   const at = {
     uploaded: [1, 'active'],
+    queued: [record.parsed ? 3 : 1, 'active'],
     parsing: [1, 'active'],
     needs_answers: [2, 'attention'],
     parsed: [3, 'active'],
@@ -85,6 +88,7 @@ function ActivityLog({ events, busy }) {
 }
 
 export default function RunbookDetail({ id }) {
+  const { user, can } = useSession()
   const [record, setRecord] = useState(null)
   const [error, setError] = useState(null)
 
@@ -151,9 +155,11 @@ export default function RunbookDetail({ id }) {
           </div>
           {parsed?.risk_reason && <p className="muted small risk-reason">{parsed.risk_reason}</p>}
         </div>
-        <button className="btn btn-ghost btn-small" onClick={remove} disabled={busy}>
-          Delete
-        </button>
+        {(can('admin') || record.submitted_by === user.id) && (
+          <button className="btn btn-ghost btn-small" onClick={remove} disabled={busy}>
+            Delete
+          </button>
+        )}
       </div>
 
       <Pipeline record={record} />
@@ -169,6 +175,7 @@ export default function RunbookDetail({ id }) {
               <ApprovalPanel record={record} act={act} />
             </>
           )}
+          {record.status === 'approved' && <RunPanel record={record} />}
           {parsed && <StepReview record={record} />}
         </div>
         <ActivityLog events={record.events ?? []} busy={busy} />

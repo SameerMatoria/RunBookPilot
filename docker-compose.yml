@@ -1,0 +1,72 @@
+# RunbookPilot, the whole stack on one machine.
+#
+#   docker compose up -d db          Postgres only (for local development with start.ps1)
+#   docker compose up -d --build     everything: http://localhost:8080
+#
+# The same pieces map to Azure in production: db -> Postgres Flexible Server, api/worker ->
+# Container Apps, web -> Static Web Apps.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: runbookpilot
+      POSTGRES_PASSWORD: runbookpilot
+      POSTGRES_DB: runbookpilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U runbookpilot"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://runbookpilot:runbookpilot@db:5432/runbookpilot
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://runbookpilot:runbookpilot@db:5432/runbookpilot
+    command: python -m app.worker
+    # The worker starts sandbox containers next to itself through the host's Docker engine.
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      api:
+        condition: service_started
+
+  web:
+    build:
+      context: frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  # A pretend "real" server to run approved scripts on over SSH (DEMO ONLY: public password).
+  # Add it in the web app as hostname demo-server, port 22 (from the containers) or
+  # localhost, port 2222 (from a worker running on your machine). User: ops / runbookpilot-demo.
+  demo-server:
+    build:
+      context: .
+      dockerfile: demo-server/Dockerfile
+    ports:
+      - "127.0.0.1:2222:22"
+
+volumes:
+  pgdata:

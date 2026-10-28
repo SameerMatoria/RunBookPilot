@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { api } from '../api.js'
 import { clockTime } from './common.jsx'
+import { useSession } from '../session.jsx'
 
 function useAction() {
   const [pending, setPending] = useState(false)
@@ -74,7 +75,17 @@ export function FailurePanel({ record, act, kind }) {
       <div className="panel-head">
         <h2>{kind === 'tests' ? 'Sandbox tests failed: handed over to you' : 'Something went wrong'}</h2>
       </div>
-      {kind === 'error' && <p className="mono small">{record.error}</p>}
+      {kind === 'error' && (
+        <>
+          <p className="mono small">{record.error}</p>
+          <div className="actions">
+            <span className="muted small">Retry continues from where it stopped; finished work is kept.</span>
+            <button className="btn btn-primary" disabled={pending} onClick={() => run(() => act(api.retry(record.id)))}>
+              Retry
+            </button>
+          </div>
+        </>
+      )}
       {diagnosis && (
         <div className="diagnosis">
           <span className="tag">{diagnosis.category?.replace('_', ' ')}</span>
@@ -82,7 +93,7 @@ export function FailurePanel({ record, act, kind }) {
           <p>{diagnosis.diagnosis}</p>
         </div>
       )}
-      {canRebuild && (
+      {canRebuild && kind === 'tests' && (
         <>
           <textarea
             rows={2}
@@ -215,13 +226,7 @@ function downloadScript(record, version) {
 }
 
 export function ApprovalPanel({ record, act }) {
-  const [reviewer, setReviewer] = useState(() => {
-    try {
-      return localStorage.getItem('rbp-reviewer') ?? ''
-    } catch {
-      return ''
-    }
-  })
+  const { user, can } = useSession()
   const [comment, setComment] = useState('')
   const { pending, error, run } = useAction()
 
@@ -229,14 +234,15 @@ export function ApprovalPanel({ record, act }) {
   const needed = record.parsed?.risk_tier === 'high' ? 2 : 1
   const decisions = (record.approvals ?? []).filter((a) => a.script_version === version)
   const approvedCount = decisions.filter((a) => a.decision === 'approved').length
-
-  function remember() {
-    try {
-      localStorage.setItem('rbp-reviewer', reviewer)
-    } catch {
-      /* storage unavailable: name just isn't remembered */
-    }
-  }
+  const ownRunbook = record.submitted_by === user.id
+  const alreadyApproved = decisions.some((d) => d.decision === 'approved' && d.user_id === user.id)
+  const blocked = !can('approver')
+    ? 'You need the approver role to review scripts.'
+    : ownRunbook
+      ? 'You uploaded this runbook, so someone else has to review it.'
+      : alreadyApproved
+        ? 'You have approved this version; a second approver is needed.'
+        : null
 
   return (
     <section className={`panel ${record.status === 'approved' ? 'panel-good' : ''}`}>
@@ -244,6 +250,7 @@ export function ApprovalPanel({ record, act }) {
         <h2>{record.status === 'approved' ? 'Approved: in the automation library' : 'Engineer approval'}</h2>
         <span className="muted">
           {approvedCount} of {needed} approval{needed === 1 ? '' : 's'} · {record.parsed?.risk_tier} risk
+          {record.submitted_by_name && ` · uploaded by ${record.submitted_by_name}`}
         </span>
       </div>
 
@@ -258,40 +265,37 @@ export function ApprovalPanel({ record, act }) {
         </ul>
       )}
 
-      {record.status === 'awaiting_approval' && (
-        <>
-          <div className="approve-form">
-            <input value={reviewer} onChange={(e) => setReviewer(e.target.value)} placeholder="Your name" />
+      {record.status === 'awaiting_approval' &&
+        (blocked ? (
+          <p className="muted small">{blocked}</p>
+        ) : (
+          <>
             <input
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Comment (required to reject; goes back to the Author agent)"
             />
-          </div>
-          <div className="actions">
-            {error && <span className="error-text">{error}</span>}
-            <button
-              className="btn btn-danger"
-              disabled={pending || !reviewer.trim() || !comment.trim()}
-              onClick={() => run(async () => { remember(); await act(api.reject(record.id, reviewer, comment)) })}
-            >
-              Reject and send back
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={pending || !reviewer.trim()}
-              onClick={() => run(async () => { remember(); await act(api.approve(record.id, reviewer, comment)) })}
-            >
-              Approve v{version}
-            </button>
-          </div>
-        </>
-      )}
+            <div className="actions">
+              <span className="muted small">Reviewing as {user.display_name}</span>
+              {error && <span className="error-text">{error}</span>}
+              <button
+                className="btn btn-danger"
+                disabled={pending || !comment.trim()}
+                onClick={() => run(() => act(api.reject(record.id, comment)))}
+              >
+                Reject and send back
+              </button>
+              <button className="btn btn-primary" disabled={pending} onClick={() => run(() => act(api.approve(record.id, comment)))}>
+                Approve v{version}
+              </button>
+            </div>
+          </>
+        ))}
 
       {record.status === 'approved' && (
         <div className="actions">
-          <span className="muted small">Every run of this script is logged. Production runs go through Azure Automation / Ansible (next phase).</span>
-          <button className="btn btn-primary" onClick={() => downloadScript(record, record.approved_version)}>
+          <span className="muted small">Run it on servers from the Run panel below. Every run is logged.</span>
+          <button className="btn btn-ghost" onClick={() => downloadScript(record, record.approved_version)}>
             Download script v{record.approved_version}
           </button>
         </div>

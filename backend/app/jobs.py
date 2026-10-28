@@ -1,77 +1,114 @@
-"""Agent jobs. Each runs in a background thread and reports progress through the record's events,
-so the web app can show the agents working live. Pass wait=True to run inline (scripts, tests)."""
-import threading
-import traceback
+"""Agent jobs. The API queues them and a worker process runs them (see worker.py); each reports
+progress as events, so the web app can show the agents working live."""
+import logging
 
-from . import store
+from . import jobqueue, store
 from .agents.author import write_script
 from .agents.parser import parse_runbook
 from .agents.reviewer import review
 from .pipeline import new_script_version, test_and_fix
 
-BUSY_STATUSES = {"parsing", "writing_script", "testing", "reviewing"}
+log = logging.getLogger(__name__)
+
+BUSY_STATUSES = {"queued", "uploaded", "parsing", "writing_script", "testing", "reviewing"}
 
 
-def open_questions(record: dict) -> list[int]:
-    steps = (record.get("parsed") or {}).get("steps", [])
+def open_questions(parsed: dict | None) -> list[int]:
+    steps = (parsed or {}).get("steps", [])
     return [s["order"] for s in steps if s.get("ambiguous") and not s.get("answer")]
 
 
-def start(job, runbook_id: str, wait: bool = False, **kwargs) -> None:
+def submit(kind: str, runbook_id: str, wait: bool = False, **payload) -> None:
+    """Queue a job for the worker, or run it right here when wait=True (scripts and tests)."""
     if wait:
-        _guarded(job, runbook_id, **kwargs)
+        run(kind, runbook_id, payload)
     else:
-        threading.Thread(target=_guarded, args=(job, runbook_id), kwargs=kwargs, daemon=True).start()
+        store.update(runbook_id, status="queued")
+        jobqueue.enqueue(kind, runbook_id, **payload)
 
 
-def _guarded(job, runbook_id: str, **kwargs) -> None:
-    record = store.get(runbook_id)
+def run(kind: str, runbook_id: str, payload: dict) -> str | None:
+    """Run one job. A failure marks the runbook as errored (never crashes the worker) and is returned."""
+    if kind == "run":
+        # Script runs on servers record their own outcome; a failed run doesn't break the runbook.
+        from .executor import execute_run
+
+        try:
+            execute_run(payload["run_id"])
+            return None
+        except Exception as e:
+            log.exception("Run %s crashed", payload.get("run_id"))
+            return str(e)[:500]
     try:
-        job(record, **kwargs)
+        JOBS[kind](runbook_id, **payload)
+        return None
     except Exception as e:
-        traceback.print_exc()
-        record["status"] = "error"
-        record["error"] = str(e)
-        store.log(record, "System", f"Stopped: {e}", "error")
+        log.exception("Job %s failed for runbook %s", kind, runbook_id)
+        message = str(e)[:500]
+        store.update(runbook_id, status="error", error=message)
+        store.log(runbook_id, "System", f"Stopped: {message}", "error")
+        return message
 
 
-def parse_job(record: dict) -> None:
-    record["status"] = "parsing"
-    store.log(record, "Parser", f"Reading {record['source_file']}")
-    record["parsed"] = parse_runbook(record["source_text"])
-    steps = record["parsed"]["steps"]
-    questions = open_questions(record)
-    store.log(record, "Parser", f"Found {len(steps)} steps, risk tier {record['parsed'].get('risk_tier')}, "
+def parse_job(runbook_id: str) -> None:
+    record = store.get(runbook_id)
+    store.update(runbook_id, status="parsing")
+    store.log(runbook_id, "Parser", f"Reading {record['source_file']}")
+    parsed = parse_runbook(record["source_text"])
+    questions = open_questions(parsed)
+    store.update(runbook_id, parsed=parsed)
+    store.log(runbook_id, "Parser", f"Found {len(parsed['steps'])} steps, risk tier {parsed.get('risk_tier')}, "
               f"{len(questions)} question(s) for the engineer", "success")
     if questions:
-        record["status"] = "needs_answers"
-        store.save(record)
+        store.update(runbook_id, status="needs_answers")
     else:
-        build_job(record)
+        build_job(runbook_id)
 
 
-def build_job(record: dict, feedback: str | None = None) -> None:
+def build_job(runbook_id: str, feedback: str | None = None) -> None:
     """Author -> lint -> sandbox test/fix loop -> Reviewer."""
-    record["status"] = "writing_script"
-    record.pop("review", None)
-    store.log(record, "Author", "Rewriting the script with reviewer feedback" if feedback else "Writing the script")
-    previous = record["scripts"][-1]["script"] if record.get("scripts") else None
-    authored = write_script(record["parsed"], feedback=feedback, previous_script=previous if feedback else None)
-    script = new_script_version(record, authored, feedback, author="reviewer_feedback" if feedback else "author")
-    store.log(record, "Author", f"Wrote script v{script['version']} ({len(script['script'].splitlines())} lines)", "success")
+    parsed = store.get(runbook_id)["parsed"]
+    store.update(runbook_id, status="writing_script", review=None)
+    store.log(runbook_id, "Author", "Rewriting the script with reviewer feedback" if feedback else "Writing the script")
+    previous = store.latest_script(runbook_id)
+    authored = write_script(parsed, feedback=feedback, previous_script=previous["script"] if (feedback and previous) else None)
+    script = new_script_version(runbook_id, authored, feedback, author="reviewer_feedback" if feedback else "author")
+    store.log(runbook_id, "Author", f"Wrote script v{script['version']} ({len(script['script'].splitlines())} lines)", "success")
 
-    record["status"] = "testing"
-    store.save(record)
-    summary = test_and_fix(record)
+    store.update(runbook_id, status="testing")
+    summary = test_and_fix(runbook_id, parsed)
     if not summary["passed"]:
-        record["status"] = "tests_failed"
-        store.save(record)
+        store.update(runbook_id, status="tests_failed")
         return
+    review_job(runbook_id)
 
-    record["status"] = "reviewing"
-    store.log(record, "Reviewer", "Writing the summary card")
+
+def review_job(runbook_id: str) -> None:
+    """Reviewer writes the card for the latest script, which must have passed its sandbox test."""
+    record = store.get(runbook_id)
     final = record["scripts"][-1]
-    card = review(record["parsed"], final, summary["run"], summary["attempts"])
-    record["review"] = {**card, "script_version": final["version"], "attempts": summary["attempts"], "created_at": store.now()}
-    record["status"] = "awaiting_approval"
-    store.log(record, "Reviewer", f"Card ready - recommends {card.get('recommendation')} ({card.get('confidence')} confidence)", "success")
+    runs = [r for r in record["test_runs"] if r["script_version"] == final["version"]]
+    if not runs or not runs[-1]["passed"]:
+        raise RuntimeError(f"Script v{final['version']} has no passing sandbox test to review.")
+    attempts = runs[-1]["attempt"]
+
+    store.update(runbook_id, status="reviewing")
+    store.log(runbook_id, "Reviewer", "Writing the summary card")
+    card = review(record["parsed"], final, runs[-1], attempts)
+    store.update(runbook_id, status="awaiting_approval", error=None, review={
+        **card, "script_version": final["version"], "attempts": attempts, "created_at": store.now(),
+    })
+    store.log(runbook_id, "Reviewer", f"Card ready - recommends {card.get('recommendation')} ({card.get('confidence')} confidence)", "success")
+
+
+def resume_point(record: dict) -> str:
+    """Where to pick up after an error: re-parse, rebuild, or just redo the review."""
+    if not record.get("parsed"):
+        return "parse"
+    last_run = record["test_runs"][-1] if record["test_runs"] else None
+    if last_run and last_run["passed"] and record["scripts"] and last_run["script_version"] == record["scripts"][-1]["version"]:
+        return "review"
+    return "build"
+
+
+JOBS = {"parse": parse_job, "build": build_job, "review": review_job}

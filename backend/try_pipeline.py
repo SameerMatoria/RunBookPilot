@@ -8,9 +8,7 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-from fastapi.testclient import TestClient
-
-from app.main import app
+from app.service_accounts import client_for
 
 # Canned engineer answers for the sample runbook (keyed by keywords in the question).
 SAMPLE_ANSWERS = {
@@ -19,7 +17,8 @@ SAMPLE_ANSWERS = {
     "server": "The script runs directly on the affected server; no SSH needed.",
 }
 
-client = TestClient(app)
+client = client_for("smoke-test", ("submitter",), "Smoke test")
+approver = client_for("smoke-approver", ("approver",), "Smoke test approver")
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 path = Path(args[0] if args else "../samples/restart-web-service.md")
 
@@ -36,7 +35,7 @@ if questions:
     record = client.post(f"/runbooks/{rid}/answers?wait=true", json={"answers": answers}).raise_for_status().json()
 
 if record["status"] == "awaiting_approval":
-    record = client.post(f"/runbooks/{rid}/approve", json={"reviewer": "Demo Engineer", "comment": "Looks good"}).raise_for_status().json()
+    record = approver.post(f"/runbooks/{rid}/approve", json={"comment": "Looks good"}).raise_for_status().json()
 
 print("\nActivity log:")
 for e in record["events"]:

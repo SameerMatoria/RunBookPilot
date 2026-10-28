@@ -1,7 +1,6 @@
 """Reviewer agent: writes the one-minute summary card the approving engineer reads."""
-import json
-
 from ..llm import chat_json
+from .common import compact_json, compact_script, compact_steps
 
 SYSTEM_PROMPT = """You are the Reviewer agent in RunbookPilot. A runbook was converted into a Bash
 script and tested in a disposable sandbox. Write the summary card a busy on-call engineer reads in
@@ -29,14 +28,28 @@ def review(parsed: dict, script: dict, test_run: dict, attempts: int) -> dict:
     evidence = {
         "passed": test_run.get("passed"),
         "attempts": attempts,
-        "dry_run_steps": (test_run.get("dry_run") or {}).get("steps"),
-        "execute_steps": (test_run.get("execute") or {}).get("steps"),
+        "dry_run_steps": _step_results(test_run.get("dry_run")),
+        "execute_steps": _step_results(test_run.get("execute")),
     }
     prompt = (
         f"Runbook: {parsed.get('title')} (risk tier: {parsed.get('risk_tier')})\n"
-        f"Parsed steps:\n{json.dumps(parsed.get('steps'), indent=2)}\n\n"
-        f"Script v{script['version']}:\n{script['script']}\n\n"
-        f"Author notes: {json.dumps(script.get('notes', []))}\n\n"
-        f"Sandbox evidence:\n{json.dumps(evidence, indent=2)}"
+        f"Parsed steps: {compact_json(compact_steps(parsed.get('steps', [])))}\n\n"
+        f"Script v{script['version']} (comments removed):\n{compact_script(script['script'])}\n\n"
+        f"Author notes: {compact_json(script.get('notes', []))}\n\n"
+        f"Sandbox evidence: {compact_json(evidence)}"
     )
-    return chat_json(SYSTEM_PROMPT, prompt)
+    return chat_json(SYSTEM_PROMPT, prompt, agent="reviewer")
+
+
+def _step_results(result: dict | None) -> list[dict] | None:
+    """Per-step status plus the last message only (full logs are not needed for the card)."""
+    if not result:
+        return None
+    return [{"order": s["order"], "status": s["status"], "msg": (s.get("messages") or [""])[-1][:160]} for s in result["steps"]]
+
+
+def _step_results(result: dict | None) -> list[dict] | None:
+    """Per-step status plus the last message only (full logs are not needed for the card)."""
+    if not result:
+        return None
+    return [{"order": s["order"], "status": s["status"], "msg": (s.get("messages") or [""])[-1][:160]} for s in result["steps"]]

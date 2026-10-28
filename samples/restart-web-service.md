@@ -2,6 +2,8 @@
 
 **Owner:** Platform Ops
 **When to use:** Website returns 502/503 errors or the "web-down" alert fires.
+**Manual time:** about 15 minutes
+**Frequency:** about 30 times a month across client accounts
 
 ## Steps
 

@@ -1,11 +1,13 @@
 """Tester agent: reads a failed sandbox run and explains what went wrong and how to fix it."""
-import json
-
 from ..llm import chat_json
+from .common import compact_json, tail
 
 SYSTEM_PROMPT = """You are the Tester agent in RunbookPilot. A generated Bash script was run in a
-disposable Linux sandbox (Debian, nginx running, no network, runs as root, systemctl is a small
-stand-in that supports nginx start/stop/restart/reload/status/is-active). It failed.
+disposable Linux sandbox. It failed. The sandbox is Debian 12, runs as root, has no network, and has
+two services running: nginx (port 80, /health) and myapp (port 8080, /health). systemctl is a small
+stand-in that supports start/stop/restart/reload/status/is-active for those two services only; it
+has no journalctl. Tools available: coreutils, findutils, gawk, curl, openssl, iproute2 (ss), procps,
+tar, gzip, sudo, useradd/groupadd.
 
 Read the script, the per-step results and the logs, then decide:
 - "script_bug": the script itself is wrong (bad syntax, wrong check, wrong command, bad quoting).
@@ -29,11 +31,12 @@ def diagnose(script: str, run: dict, lint: dict | None = None) -> dict:
         "mode": run["mode"],
         "exit_code": run["exit_code"],
         "timed_out": run["timed_out"],
-        "steps": run["steps"],
-        "stdout_tail": run["stdout"][-3000:],
-        "stderr_tail": run["stderr"][-2000:],
+        "steps": [{"order": s["order"], "status": s["status"], "msg": (s.get("messages") or [""])[-1][:200]} for s in run["steps"]],
+        "stdout_tail": tail(run["stdout"], 2000),
+        "stderr_tail": tail(run["stderr"], 1500),
     }
     if lint and not lint.get("passed"):
         evidence["lint"] = lint
-    prompt = f"Script:\n{script}\n\nSandbox result:\n{json.dumps(evidence, indent=2)}"
-    return chat_json(SYSTEM_PROMPT, prompt)
+    # The full script is kept (not compacted) because error messages refer to its line numbers.
+    prompt = f"Script:\n{script}\n\nSandbox result: {compact_json(evidence)}"
+    return chat_json(SYSTEM_PROMPT, prompt, agent="tester")

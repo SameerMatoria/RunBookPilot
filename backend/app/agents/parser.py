@@ -22,6 +22,8 @@ Return JSON only, in this shape:
   "target_os": "linux" | "windows" | "unknown",
   "risk_tier": "low" | "medium" | "high",
   "risk_reason": "one sentence",
+  "manual_minutes": <number: how long the runbook says it takes by hand, or null if not stated>,
+  "runs_per_month": <number: how often the runbook says it is run per month, or null if not stated>,
   "steps": [
     {
       "order": 1,
@@ -38,6 +40,6 @@ Return JSON only, in this shape:
 
 
 def parse_runbook(runbook_text: str) -> dict:
-    result = chat_json(SYSTEM_PROMPT, f"Runbook:\n\n{runbook_text}")
+    result = chat_json(SYSTEM_PROMPT, f"Runbook:\n\n{runbook_text}", agent="parser")
     result.setdefault("steps", [])
     return result

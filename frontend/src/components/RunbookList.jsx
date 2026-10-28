@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, BUSY } from '../api.js'
 import { RiskBadge, StatusChip, timeAgo } from './common.jsx'
+import { useSession } from '../session.jsx'
 
 function UploadZone() {
   const [dragging, setDragging] = useState(false)
@@ -52,6 +53,7 @@ function UploadZone() {
 }
 
 export default function RunbookList() {
+  const { can } = useSession()
   const [runbooks, setRunbooks] = useState(null)
   const [error, setError] = useState(null)
 
@@ -83,7 +85,11 @@ export default function RunbookList() {
             hand it to you for approval. Nothing runs for real until an engineer approves it.
           </p>
         </div>
-        <UploadZone />
+        {can('submitter') ? (
+          <UploadZone />
+        ) : (
+          <div className="upload muted">You can view runbooks. Uploading needs the submitter role.</div>
+        )}
       </section>
 
       <section className="panel">

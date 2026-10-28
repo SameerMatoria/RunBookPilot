@@ -8,83 +8,72 @@ from .lint import lint_script
 MAX_ATTEMPTS = 3
 
 
-def new_script_version(record: dict, authored: dict, feedback: str | None, author: str) -> dict:
-    scripts = record.setdefault("scripts", [])
-    version = {
-        "version": len(scripts) + 1,
-        "created_at": store.now(),
-        "feedback": feedback,
-        "author": author,
-        **authored,
-        "lint": lint_script(authored["script"]),
-    }
-    scripts.append(version)
-    return version
+def new_script_version(runbook_id: str, authored: dict, feedback: str | None, author: str) -> dict:
+    return store.add_script(runbook_id, author=author, feedback=feedback, authored=authored, lint=lint_script(authored["script"]))
 
 
 def _badges(result: dict) -> str:
     return " ".join(f"{s['order']}:{s['status']}" for s in result["steps"]) or "no steps reported"
 
 
-def _test_once(record: dict, script: dict, attempt: int) -> dict:
+def _test_once(runbook_id: str, script: dict, attempt: int) -> dict:
     """Lint gate first, then dry-run, then execute. Stops at the first stage that fails."""
     lint = script["lint"]
-    result = {"attempt": attempt, "script_version": script["version"], "started_at": store.now(),
-              "lint_passed": lint["passed"], "dry_run": None, "execute": None}
+    result = {"attempt": attempt, "script_version": script["version"], "lint_passed": lint["passed"],
+              "dry_run": None, "execute": None}
     if not lint["passed"]:
-        store.log(record, "Lint", f"v{script['version']} blocked: {len(lint['blocked'])} blocked command(s), "
+        store.log(runbook_id, "Lint", f"v{script['version']} blocked: {len(lint['blocked'])} blocked command(s), "
                   f"{sum(i['severity'] == 'error' for i in lint['issues'])} error(s)", "error")
         return {**result, "passed": False, "failed_stage": "lint"}
-    store.log(record, "Lint", f"v{script['version']} passed static checks")
+    store.log(runbook_id, "Lint", f"v{script['version']} passed static checks")
 
-    store.log(record, "Sandbox", f"Attempt {attempt}: dry run in a fresh container")
+    store.log(runbook_id, "Sandbox", f"Attempt {attempt}: dry run in a fresh container")
     result["dry_run"] = sandbox.run_script(script["script"], execute=False)
-    store.log(record, "Sandbox", f"Dry run {'passed' if result['dry_run']['passed'] else 'FAILED'} - {_badges(result['dry_run'])}",
-              "success" if result["dry_run"]["passed"] else "error")
-    if not result["dry_run"]["passed"]:
+    ok = result["dry_run"]["passed"]
+    store.log(runbook_id, "Sandbox", f"Dry run {'passed' if ok else 'FAILED'} - {_badges(result['dry_run'])}",
+              "success" if ok else "error")
+    if not ok:
         return {**result, "passed": False, "failed_stage": "dry_run"}
 
-    store.log(record, "Sandbox", f"Attempt {attempt}: real run (--execute) in a fresh container")
+    store.log(runbook_id, "Sandbox", f"Attempt {attempt}: real run (--execute) in a fresh container")
     result["execute"] = sandbox.run_script(script["script"], execute=True)
-    passed = result["execute"]["passed"]
-    store.log(record, "Sandbox", f"Execute {'passed' if passed else 'FAILED'} - {_badges(result['execute'])}",
-              "success" if passed else "error")
-    return {**result, "passed": passed, "failed_stage": None if passed else "execute"}
+    ok = result["execute"]["passed"]
+    store.log(runbook_id, "Sandbox", f"Execute {'passed' if ok else 'FAILED'} - {_badges(result['execute'])}",
+              "success" if ok else "error")
+    return {**result, "passed": ok, "failed_stage": None if ok else "execute"}
 
 
-def test_and_fix(record: dict) -> dict:
-    """Mutates and saves record: appends test runs and any fixed script versions. Returns a summary."""
-    test_runs = record.setdefault("test_runs", [])
-
+def test_and_fix(runbook_id: str, parsed: dict) -> dict:
+    """Test the latest script; on failure diagnose, fix and retest. Returns a summary."""
     for attempt in range(1, MAX_ATTEMPTS + 2):  # first test + up to MAX_ATTEMPTS fixes
-        current = record["scripts"][-1]
-        run = _test_once(record, current, attempt)
-        test_runs.append(run)
-        store.save(record)
+        current = store.latest_script(runbook_id)
+        run = _test_once(runbook_id, current, attempt)
+        run_id = store.add_test_run(runbook_id, run)
 
         if run["passed"]:
             return {"passed": True, "attempts": attempt, "script_version": current["version"], "run": run}
 
         failed = run.get(run["failed_stage"]) if run["failed_stage"] != "lint" else None
-        store.log(record, "Tester", "Reading the failure logs")
+        store.log(runbook_id, "Tester", "Reading the failure logs")
         diagnosis = diagnose(current["script"], failed or _lint_as_run(current["lint"]), current["lint"])
+        store.set_diagnosis(run_id, diagnosis)
         run["diagnosis"] = diagnosis
-        store.log(record, "Tester", f"[{diagnosis.get('category')}] step {diagnosis.get('failed_step')}: {diagnosis.get('diagnosis')}", "warning")
+        store.log(runbook_id, "Tester", f"[{diagnosis.get('category')}] step {diagnosis.get('failed_step')}: {diagnosis.get('diagnosis')}", "warning")
 
         if diagnosis.get("category") != "script_bug":
-            store.log(record, "Tester", "Not a script bug - handing over to the engineer", "error")
+            store.log(runbook_id, "Tester", "Not a script bug - handing over to the engineer", "error")
             break
         if attempt > MAX_ATTEMPTS:
-            store.log(record, "Tester", f"Retry limit ({MAX_ATTEMPTS} fixes) reached - handing over to the engineer", "error")
+            store.log(runbook_id, "Tester", f"Retry limit ({MAX_ATTEMPTS} fixes) reached - handing over to the engineer", "error")
             break
 
         feedback = f"Sandbox test failed at step {diagnosis.get('failed_step')}: {diagnosis.get('diagnosis')}\nFix: {diagnosis.get('fix')}"
-        store.log(record, "Author", f"Fixing the script (fix {attempt} of {MAX_ATTEMPTS})")
-        authored = write_script(record["parsed"], feedback=feedback, previous_script=current["script"])
-        new_script_version(record, authored, feedback, author="tester_loop")
-        store.log(record, "Author", f"Wrote script v{record['scripts'][-1]['version']}")
+        store.log(runbook_id, "Author", f"Fixing the script (fix {attempt} of {MAX_ATTEMPTS})")
+        authored = write_script(parsed, feedback=feedback, previous_script=current["script"])
+        version = new_script_version(runbook_id, authored, feedback, author="tester_loop")
+        store.log(runbook_id, "Author", f"Wrote script v{version['version']}")
 
-    return {"passed": False, "attempts": attempt, "script_version": record["scripts"][-1]["version"], "run": test_runs[-1]}
+    return {"passed": False, "attempts": attempt, "script_version": store.latest_script(runbook_id)["version"], "run": run}
 
 
 def _lint_as_run(lint: dict) -> dict:

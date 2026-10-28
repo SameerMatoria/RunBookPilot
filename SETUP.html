@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RunbookPilot Setup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f5f8;
+    --panel: #ffffff;
+    --border: #e3e6ec;
+    --text: #161a23;
+    --muted: #687083;
+    --accent: #3d5afe;
+    --accent-soft: #eef1ff;
+    --good: #12805c;
+    --good-soft: #e5f6ee;
+    --warn: #b25e00;
+    --warn-soft: #fff3e0;
+    --code-bg: #0d1117;
+    --code-text: #e6edf3;
+    --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1218;
+      --panel: #171b23;
+      --border: #2a303c;
+      --text: #e8ebf1;
+      --muted: #98a0b0;
+      --accent: #7b8cff;
+      --accent-soft: #1f2540;
+      --good: #4cc38a;
+      --good-soft: #13291f;
+      --warn: #f0a547;
+      --warn-soft: #2d2213;
+      --code-bg: #0a0d12;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1218;
+    --panel: #171b23;
+    --border: #2a303c;
+    --text: #e8ebf1;
+    --muted: #98a0b0;
+    --accent: #7b8cff;
+    --accent-soft: #1f2540;
+    --good: #4cc38a;
+    --good-soft: #13291f;
+    --warn: #f0a547;
+    --warn-soft: #2d2213;
+    --code-bg: #0a0d12;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 40px 16px 80px; }
+
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .mark {
+    display: grid; place-items: center; flex: none;
+    width: 44px; height: 44px; border-radius: 11px;
+    background: linear-gradient(135deg, #3d5afe, #7c4dff);
+    color: #fff; font-weight: 700; font-size: 15px;
+  }
+  h1 { margin: 0; font-size: 28px; letter-spacing: -0.01em; line-height: 1.2; }
+  .lede { color: var(--muted); margin: 12px 0 28px; max-width: 640px; }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 0 8px; }
+  p { margin: 8px 0; }
+  a { color: var(--accent); }
+
+  .os-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--panel); margin-bottom: 24px; }
+  .os-switch button {
+    font: inherit; font-weight: 600; font-size: 14px; border: 0; background: none; color: var(--muted);
+    padding: 8px 16px; cursor: pointer;
+  }
+  .os-switch button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+  .step {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px 20px 70px;
+    margin-bottom: 14px;
+  }
+  .num {
+    position: absolute; left: 20px; top: 20px;
+    width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent);
+    font-weight: 700;
+  }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 10px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12.5px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td code, p code, li code {
+    font-family: var(--mono); font-size: 12.5px;
+    background: var(--accent-soft); color: var(--text);
+    padding: 1px 6px; border-radius: 5px; white-space: nowrap;
+  }
+
+  .code {
+    position: relative;
+    background: var(--code-bg);
+    border-radius: 9px;
+    margin: 10px 0;
+  }
+  .code pre {
+    margin: 0; padding: 14px 16px; padding-right: 76px;
+    color: var(--code-text);
+    font: 13px/1.6 var(--mono);
+    overflow-x: auto;
+  }
+  .code .c { color: #8b949e; }
+  .copy {
+    position: absolute; top: 8px; right: 8px;
+    font: 600 12px Inter, sans-serif;
+    background: #21262d; color: #c9d1d9;
+    border: 1px solid #30363d; border-radius: 6px;
+    padding: 4px 10px; cursor: pointer;
+  }
+  .copy:hover { background: #30363d; }
+  .copy.done { color: #4cc38a; }
+
+  .note { border-radius: 9px; padding: 11px 14px; font-size: 14px; margin: 12px 0 0; }
+  .note-warn { background: var(--warn-soft); color: var(--text); border-left: 3px solid var(--warn); }
+  .note-good { background: var(--good-soft); color: var(--text); border-left: 3px solid var(--good); }
+  .note strong { font-weight: 600; }
+
+  .daily {
+    background: var(--panel); border: 2px solid var(--accent);
+    border-radius: 12px; padding: 20px 22px; margin: 28px 0 14px;
+  }
+  .daily ol { margin: 8px 0 0; padding-left: 20px; }
+  .daily li + li { margin-top: 6px; }
+
+  .section { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; margin-bottom: 14px; }
+
+  [data-os="mac"] .win-only, [data-os="win"] .mac-only { display: none; }
+
+  footer { color: var(--muted); font-size: 13px; margin-top: 32px; text-align: center; }
+
+  @media (max-width: 600px) {
+    .wrap { padding-top: 24px; }
+    h1 { font-size: 23px; }
+    .step { padding: 18px 16px 18px 16px; }
+    .num { position: static; margin-bottom: 8px; }
+    td code { white-space: normal; overflow-wrap: anywhere; }
+    th:nth-child(3), td:nth-child(3) { display: none; }
+  }
+</style>
+</head>
+<body data-os="win">
+<div class="wrap">
+
+  <header>
+    <div class="mark">RP</div>
+    <h1>RunbookPilot setup guide</h1>
+  </header>
+  <p class="lede">
+    How to get RunbookPilot running on a new laptop, from a fresh machine to the app open in your browser.
+    Setup takes about 15–20 minutes, most of it installing tools.
+  </p>
+
+  <div class="os-switch" role="group" aria-label="Operating system">
+    <button type="button" data-set-os="win" aria-pressed="true">Windows</button>
+    <button type="button" data-set-os="mac" aria-pressed="false">Mac / Linux</button>
+  </div>
+
+  <!-- 1 -->
+  <section class="step">
+    <div class="num">1</div>
+    <h2>Install the tools</h2>
+    <p class="sub">One time only. After installing everything, close and reopen your terminal so it picks up the new tools.</p>
+    <table>
+      <thead><tr><th>Tool</th><th>Download</th><th>Check it works</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Git</strong></td><td><a href="https://git-scm.com/downloads" target="_blank" rel="noopener">git-scm.com</a></td><td><code>git --version</code></td></tr>
+        <tr><td><strong>Python 3.12</strong></td><td><a href="https://www.python.org/downloads/" target="_blank" rel="noopener">python.org</a></td><td><code class="win-only">python --version</code><code class="mac-only">python3 --version</code></td></tr>
+        <tr><td><strong>Node.js 20+</strong> (LTS)</td><td><a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a></td><td><code>node --version</code></td></tr>
+        <tr><td><strong>Docker Desktop</strong></td><td><a href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener">docker.com</a></td><td>Open it and wait for <strong>Engine running</strong></td></tr>
+      </tbody>
+    </table>
+    <div class="note note-warn win-only"><strong>Python on Windows:</strong> tick <strong>"Add Python to PATH"</strong> on the first screen of the installer.</div>
+  </section>
+
+  <!-- 2 -->
+  <section class="step">
+    <div class="num">2</div>
+    <h2>Clone the repo</h2>
+    <p class="sub">Open <span class="win-only">PowerShell</span><span class="mac-only">Terminal</span> and run:</p>
+    <div class="code win-only"><pre>cd $HOME\Documents
+git clone https://github.com/SameerMatoria/RunBookPilot.git
+cd RunBookPilot</pre></div>
+    <div class="code mac-only"><pre>cd ~/Documents
+git clone https://github.com/SameerMatoria/RunBookPilot.git
+cd RunBookPilot</pre></div>
+  </section>
+
+  <!-- 3 -->
+  <section class="step">
+    <div class="num">3</div>
+    <h2>Set up the backend</h2>
+    <p class="sub">Creates a private Python environment and installs the backend's packages.</p>
+    <div class="code win-only"><pre>cd backend
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+copy .env.example .env
+notepad .env</pre></div>
+    <div class="code mac-only"><pre>cd backend
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+open -e .env          <span class="c"># or: nano .env</span></pre></div>
+    <p>In the file that opens, replace <code>gsk_xxx</code> with your <strong>Groq API key</strong> and save.
+      Reuse your existing key or create one at
+      <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>.</p>
+    <div class="note note-warn"><strong>Why this step is manual:</strong> the <code>.env</code> file holds your secret key, so it is never uploaded to GitHub. You need to create it on every new machine.</div>
+  </section>
+
+  <!-- 4 -->
+  <section class="step">
+    <div class="num">4</div>
+    <h2>Set up the web app</h2>
+    <div class="code win-only"><pre>cd ..\frontend
+npm install
+cd ..</pre></div>
+    <div class="code mac-only"><pre>cd ../frontend
+npm install
+cd ..</pre></div>
+  </section>
+
+  <!-- 5 -->
+  <section class="step">
+    <div class="num">5</div>
+    <h2>Start RunbookPilot</h2>
+    <p class="sub">Make sure <strong>Docker Desktop is running</strong> first.</p>
+    <div class="win-only">
+      <p>From the <code>RunBookPilot</code> folder:</p>
+      <div class="code"><pre>powershell -ExecutionPolicy Bypass -File .\start.ps1</pre></div>
+      <p>This starts the database in Docker, then opens three windows (the backend, a worker that runs the AI agents, and the web app), then your browser at
+        <a href="http://localhost:5173" target="_blank" rel="noopener">http://localhost:5173</a>.</p>
+    </div>
+    <div class="mac-only">
+      <p>Use three terminal windows, all starting in the <code>RunBookPilot</code> folder.</p>
+      <h3>Terminal 1: database + backend</h3>
+      <div class="code"><pre>docker compose up -d db
+cd backend
+.venv/bin/alembic upgrade head
+.venv/bin/python -m uvicorn app.main:app --port 8000</pre></div>
+      <h3>Terminal 2: worker (runs the AI agents)</h3>
+      <div class="code"><pre>cd backend
+.venv/bin/python -m app.worker</pre></div>
+      <h3>Terminal 3: web app</h3>
+      <div class="code"><pre>cd frontend
+npm run dev</pre></div>
+      <p>Then open <a href="http://localhost:5173" target="_blank" rel="noopener">http://localhost:5173</a>.</p>
+    </div>
+    <div class="note note-good"><strong>Check:</strong> both dots in the top-right corner of the app should be <strong>green</strong>: the AI model and the sandbox.</div>
+  </section>
+
+  <!-- 6 -->
+  <section class="step">
+    <div class="num">6</div>
+    <h2>Sign in</h2>
+    <p>On a brand-new database the page offers <strong>Create the first admin</strong>: pick a username and a password of 8+ characters. That admin adds everyone else on the <strong>Users</strong> page and gives them roles: <em>submitter</em> (uploads runbooks), <em>approver</em> (approves scripts), <em>operator</em> (runs them on servers), <em>admin</em>.</p>
+    <div class="note note-warn"><strong>Approving needs a second person.</strong> Nobody can approve a runbook they uploaded, so for a solo test create a second user with the approver role.</div>
+  </section>
+
+  <!-- 7 -->
+  <section class="step">
+    <div class="num">7</div>
+    <h2>Do a first test run</h2>
+    <p>Drag <code>samples/restart-web-service.md</code> onto the upload box, answer the questions, and let it run through to the review card.</p>
+    <div class="note note-warn"><strong>Do this before any demo.</strong> The first sandbox test downloads and builds the sandbox, which adds 1–2 minutes. After that, each test takes seconds.</div>
+    <h3>Optional: run it on a server</h3>
+    <p>Start the demo server with <code>docker compose up -d demo-server</code>. On the <strong>Servers</strong> page add a password credential (user <code>ops</code>, password <code>runbookpilot-demo</code>), then a server with hostname <code>localhost</code> and port <code>2222</code>, and click <strong>Test connection</strong>. Then open an approved runbook and use <strong>Run on servers</strong>.</p>
+  </section>
+
+  <!-- Daily -->
+  <section class="daily">
+    <h2>Every time after that</h2>
+    <ol>
+      <li>Open <strong>Docker Desktop</strong> and wait for <strong>Engine running</strong>.</li>
+      <li class="win-only">From the <code>RunBookPilot</code> folder, run <code>powershell -ExecutionPolicy Bypass -File .\start.ps1</code></li>
+      <li class="mac-only">Start the backend, the worker and the web app in three terminals, as in step 5.</li>
+      <li>To stop, close the <span class="win-only">three PowerShell windows</span><span class="mac-only">terminals (or press Ctrl+C in each)</span>.</li>
+    </ol>
+  </section>
+
+  <!-- Troubleshooting -->
+  <section class="section">
+    <h2>If something goes wrong</h2>
+    <table>
+      <thead><tr><th>Problem</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td><code>python</code> not found</td><td class="win-only">Reinstall Python with "Add Python to PATH" ticked, then reopen PowerShell.</td><td class="mac-only">Use <code>python3</code>, or install Python 3.12 from python.org.</td></tr>
+        <tr class="win-only"><td>Script won't run: "running scripts is disabled"</td><td>Use the full command from step 5, which includes <code>-ExecutionPolicy Bypass</code>.</td></tr>
+        <tr><td>Top-right shows <strong>Sandbox offline</strong></td><td>Docker Desktop isn't running. Start it, wait for "Engine running", then refresh the page.</td></tr>
+        <tr><td>Top-right shows <strong>No worker running</strong>, or runbooks stay "Queued"</td><td>The worker window was closed. Start it again: <code>cd backend</code> then <code>.venv\Scripts\python -m app.worker</code>.</td></tr>
+        <tr><td>First dot (AI model) is <strong>red</strong></td><td>The key in <code>backend/.env</code> is missing or wrong. Fix it, then restart the backend.</td></tr>
+        <tr><td>"Port already in use"</td><td>Another copy is already running. Close the old windows first.</td></tr>
+        <tr><td>An agent fails with "rate limit"</td><td>You've hit Groq's free limit. Wait a minute, or add a free Gemini backup key in <code>backend/.env</code>.</td></tr>
+        <tr><td>Code was updated on GitHub</td><td>Run <code>git pull</code>, then the install commands from steps 3 and 4 again.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>RunbookPilot · Kyndryl Hackathon · Track 01</footer>
+</div>
+
+<script>
+  // Windows / Mac toggle, remembered per browser when storage is available.
+  const buttons = document.querySelectorAll('[data-set-os]');
+  function setOs(os) {
+    document.body.dataset.os = os;
+    buttons.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.setOs === os)));
+    try { localStorage.setItem('rbp-setup-os', os); } catch (e) { /* storage unavailable */ }
+  }
+  buttons.forEach(b => b.addEventListener('click', () => setOs(b.dataset.setOs)));
+  let saved = null;
+  try { saved = localStorage.getItem('rbp-setup-os'); } catch (e) { /* storage unavailable */ }
+  setOs(saved || (/Mac|Linux/i.test(navigator.platform) ? 'mac' : 'win'));
+
+  // Copy buttons on every code block (comments are left out of the copied text).
+  document.querySelectorAll('.code').forEach(block => {
+    const btn = document.createElement('button');
+    btn.className = 'copy';
+    btn.type = 'button';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', async () => {
+      const pre = block.querySelector('pre').cloneNode(true);
+      pre.querySelectorAll('.c').forEach(c => c.remove());
+      const text = pre.textContent.replace(/[ \t]+$/gm, '').trim();
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied';
+        btn.classList.add('done');
+      } catch (e) {
+        btn.textContent = 'Select & copy';
+      }
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1500);
+    });
+    block.appendChild(btn);
+  });
+</script>
+</body>
+</html>
