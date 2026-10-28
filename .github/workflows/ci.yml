@@ -32,14 +32,15 @@ jobs:
       - run: pip install -r requirements.txt -r requirements-dev.txt
       - name: Tests (SQLite)
         run: python -m pytest
-      - name: Tests (Postgres)
-        run: python -m pytest
-        env:
-          TEST_DATABASE_URL: postgresql+psycopg://runbookpilot:runbookpilot@localhost:5432/runbookpilot_test
+      # Before the Postgres tests: they recreate the tables, so the database must still be empty here.
       - name: Migrations apply cleanly
         run: alembic upgrade head
         env:
           DATABASE_URL: postgresql+psycopg://runbookpilot:runbookpilot@localhost:5432/runbookpilot_test
+      - name: Tests (Postgres)
+        run: python -m pytest
+        env:
+          TEST_DATABASE_URL: postgresql+psycopg://runbookpilot:runbookpilot@localhost:5432/runbookpilot_test
 
   frontend:
     runs-on: ubuntu-latest
