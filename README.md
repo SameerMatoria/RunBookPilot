@@ -48,7 +48,7 @@ everyone else on the **Users** page (or from the command line:
 | Role | Can |
 |---|---|
 | submitter | upload runbooks, answer the agents' questions, retry |
-| approver | approve or reject scripts (never their own uploads; high-risk needs two approvers) |
+| approver | approve, request changes to, or reject scripts (never their own uploads; high-risk needs two approvers) |
 | operator | run approved scripts on servers, manage schedules and alert triggers |
 | admin | everything, plus users, servers, credentials and the audit log |
 
@@ -129,7 +129,9 @@ All endpoints except `/health`, sign-in and `/hooks/*` need a signed-in user (se
 - `POST /runbooks/{id}/answers` `{"answers": {"3": "..."}}`; queues the build once all are answered
 - `POST /runbooks/{id}/build` `{"feedback": "..."}` write, test and review (alias `/regenerate`)
 - `POST /runbooks/{id}/retry` after an error, continue from where it stopped
-- `POST /runbooks/{id}/approve` / `/reject` `{"reviewer": "...", "comment": "..."}`; high risk needs 2 approvers; reject sends the comment back to the Author
+- `POST /runbooks/{id}/approve` `{"comment": "..."}`; high risk needs 2 approvers
+- `POST /runbooks/{id}/request-changes` `{"comment": "..."}` the comment goes to the Author; the new version is tested and reviewed again
+- `POST /runbooks/{id}/reject` `{"comment": "..."}` final: nothing is rebuilt
 - `DELETE /runbooks/{id}`
 - `POST /auth/login`, `/auth/entra`, `/auth/setup`, `/auth/logout`; `GET /auth/me`, `/auth/config`
 - `GET/POST /users`, `PATCH /users/{id}`, `GET /audit` (admin)

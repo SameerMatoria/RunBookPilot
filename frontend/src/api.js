@@ -63,6 +63,7 @@ export const api = {
   retry: (id) => post(`/runbooks/${id}/retry`),
   approve: (id, comment) => post(`/runbooks/${id}/approve`, { comment: comment || null }),
   reject: (id, comment) => post(`/runbooks/${id}/reject`, { comment }),
+  requestChanges: (id, comment) => post(`/runbooks/${id}/request-changes`, { comment }),
 
   // users and audit (admin)
   users: () => request('/users'),

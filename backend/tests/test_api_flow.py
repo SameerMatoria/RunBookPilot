@@ -41,13 +41,28 @@ def test_high_risk_needs_two_different_approvers(client, client_as, fakes):
     assert second["status"] == "approved"
 
 
-def test_reject_sends_feedback_to_author(client, client_as, fakes):
+def test_request_changes_sends_feedback_to_author(client, client_as, fakes):
     rid = upload(client)["id"]
-    after = client_as("bob").post(f"/runbooks/{rid}/reject?wait=true", json={"comment": "Use reload, not restart"}).json()
-    assert fakes.author_calls[-1] == "Reviewer rejected the script: Use reload, not restart"
+    after = client_as("bob").post(f"/runbooks/{rid}/request-changes?wait=true", json={"comment": "Use reload, not restart"}).json()
+    assert fakes.author_calls[-1] == "The approver asked for changes: Use reload, not restart"
     assert len(after["scripts"]) == 2
     assert after["status"] == "awaiting_approval"
-    assert after["approvals"][0]["decision"] == "rejected"
+    assert after["approvals"][0]["decision"] == "sent_back"
+
+
+def test_request_changes_needs_a_comment(client, client_as, fakes):
+    rid = upload(client)["id"]
+    assert client_as("bob").post(f"/runbooks/{rid}/request-changes", json={"comment": "  "}).status_code == 422
+
+
+def test_reject_is_final(client, client_as, fakes):
+    rid = upload(client)["id"]
+    calls = len(fakes.author_calls)
+    after = client_as("bob").post(f"/runbooks/{rid}/reject", json={"comment": "We retire this service next month"}).json()
+    assert after["status"] == "rejected"
+    assert len(after["scripts"]) == 1 and len(fakes.author_calls) == calls
+    assert after["approvals"][0] == {**after["approvals"][0], "decision": "rejected", "comment": "We retire this service next month"}
+    assert client_as("carol").post(f"/runbooks/{rid}/approve").status_code == 409
 
 
 def test_approve_requires_right_state(client, client_as, fakes):

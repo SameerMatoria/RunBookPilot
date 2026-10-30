@@ -225,6 +225,8 @@ function downloadScript(record, version) {
   URL.revokeObjectURL(url)
 }
 
+const DECISION_LABEL = { approved: 'approved', rejected: 'rejected', sent_back: 'asked for changes to' }
+
 export function ApprovalPanel({ record, act }) {
   const { user, can } = useSession()
   const [comment, setComment] = useState('')
@@ -244,10 +246,22 @@ export function ApprovalPanel({ record, act }) {
         ? 'You have approved this version; a second approver is needed.'
         : null
 
+  const tone = { approved: 'panel-good', rejected: 'panel-bad' }[record.status] ?? ''
+  const title = { approved: 'Approved: in the automation library', rejected: 'Rejected' }[record.status] ?? 'Engineer approval'
+
+  const rejectFinal = () => {
+    if (window.confirm(`Reject v${version} for good? Nothing will be rebuilt; the reason is kept in the audit log.`)) {
+      run(async () => {
+        await act(api.reject(record.id, comment))
+        setComment('')
+      })
+    }
+  }
+
   return (
-    <section className={`panel ${record.status === 'approved' ? 'panel-good' : ''}`}>
+    <section className={`panel ${tone}`}>
       <div className="panel-head">
-        <h2>{record.status === 'approved' ? 'Approved: in the automation library' : 'Engineer approval'}</h2>
+        <h2>{title}</h2>
         <span className="muted">
           {approvedCount} of {needed} approval{needed === 1 ? '' : 's'} · {record.parsed?.risk_tier} risk
           {record.submitted_by_name && ` · uploaded by ${record.submitted_by_name}`}
@@ -258,7 +272,7 @@ export function ApprovalPanel({ record, act }) {
         <ul className="decisions">
           {decisions.map((d, i) => (
             <li key={i} className={d.decision}>
-              <strong>{d.reviewer}</strong> {d.decision} v{d.script_version} at {clockTime(d.at)}
+              <strong>{d.reviewer}</strong> {DECISION_LABEL[d.decision] ?? d.decision} v{d.script_version} at {clockTime(d.at)}
               {d.comment && <span className="muted">: "{d.comment}"</span>}
             </li>
           ))}
@@ -273,7 +287,7 @@ export function ApprovalPanel({ record, act }) {
             <input
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Comment (required to reject; goes back to the Author agent)"
+              placeholder="Comment: what to change, or why you reject it (required for both)"
             />
             <div className="actions">
               <span className="muted small">Reviewing as {user.display_name}</span>
@@ -281,9 +295,18 @@ export function ApprovalPanel({ record, act }) {
               <button
                 className="btn btn-danger"
                 disabled={pending || !comment.trim()}
-                onClick={() => run(() => act(api.reject(record.id, comment)))}
+                title="Final: nothing is rebuilt"
+                onClick={rejectFinal}
               >
-                Reject and send back
+                Reject
+              </button>
+              <button
+                className="btn btn-ghost"
+                disabled={pending || !comment.trim()}
+                title="The Author rewrites the script from your comment; the new version is tested and reviewed again"
+                onClick={() => run(() => act(api.requestChanges(record.id, comment)))}
+              >
+                Request changes
               </button>
               <button className="btn btn-primary" disabled={pending} onClick={() => run(() => act(api.approve(record.id, comment)))}>
                 Approve v{version}
@@ -291,6 +314,25 @@ export function ApprovalPanel({ record, act }) {
             </div>
           </>
         ))}
+
+      {record.status === 'rejected' && !can('submitter') && <p className="muted small">Nothing will run. A submitter can reopen it.</p>}
+      {record.status === 'rejected' && can('submitter') && (
+        <>
+          <textarea
+            rows={2}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Optional: guidance for the Author agent if you reopen it"
+          />
+          <div className="actions">
+            <span className="muted small">Nothing will run. Reopening writes a new version that is tested and reviewed again.</span>
+            {error && <span className="error-text">{error}</span>}
+            <button className="btn btn-ghost" disabled={pending} onClick={() => run(() => act(api.build(record.id, comment)))}>
+              Reopen: rewrite and retest
+            </button>
+          </div>
+        </>
+      )}
 
       {record.status === 'approved' && (
         <div className="actions">

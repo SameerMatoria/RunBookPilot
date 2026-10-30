@@ -706,6 +706,9 @@ select:focus {
 .decisions .rejected strong {
   color: var(--bad);
 }
+.decisions .sent_back strong {
+  color: var(--warn);
+}
 .approve-form {
   display: grid;
   grid-template-columns: 200px 1fr;

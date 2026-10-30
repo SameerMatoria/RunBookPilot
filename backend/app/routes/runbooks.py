@@ -156,23 +156,43 @@ def approve(runbook_id: str, request: Request, body: DecisionIn | None = None,
     return store.get(runbook_id)
 
 
-@router.post("/{runbook_id}/reject")
-def reject(runbook_id: str, request: Request, body: DecisionIn | None = None, regenerate: bool = True,
-           wait: bool = False, user: dict = Depends(require("approver"))):
-    """Reject the script. By default the comment goes back to the Author agent as feedback."""
+def _load_reviewable(runbook_id: str, user: dict, action: str) -> dict:
     record = _load_idle(runbook_id)
     if record["status"] not in ("awaiting_approval", "tests_failed"):
-        raise HTTPException(409, f"Nothing to reject (status: {record['status']}).")
+        raise HTTPException(409, f"Nothing to {action} (status: {record['status']}).")
     _check_not_own(record, user)
+    return record
+
+
+@router.post("/{runbook_id}/reject")
+def reject(runbook_id: str, request: Request, body: DecisionIn | None = None,
+           user: dict = Depends(require("approver"))):
+    """Final rejection: nothing is rebuilt. The reason is kept in the history and the audit log."""
+    record = _load_reviewable(runbook_id, user, "reject")
     comment = body.comment if body else None
     version = record["scripts"][-1]["version"]
     store.add_approval(runbook_id, reviewer=user["display_name"], user_id=user["id"], decision="rejected",
                        comment=comment, script_version=version)
     store.update(runbook_id, status="rejected")
-    store.log(runbook_id, "Engineer", f"{user['display_name']} rejected v{version}: {comment or 'no comment'}", "warning")
+    store.log(runbook_id, "Engineer", f"{user['display_name']} rejected v{version}: {comment or 'no reason given'}", "warning")
     audit.record(user, "runbook.reject", "runbook", runbook_id, request, version=version, comment=comment)
-    if regenerate and comment:
-        jobs.submit("build", runbook_id, wait=wait, feedback=f"Reviewer rejected the script: {comment}")
+    return store.get(runbook_id)
+
+
+@router.post("/{runbook_id}/request-changes")
+def request_changes(runbook_id: str, request: Request, body: DecisionIn, wait: bool = False,
+                    user: dict = Depends(require("approver"))):
+    """Send the script back: the comment goes to the Author agent, and the new version is tested and reviewed again."""
+    comment = (body.comment or "").strip()
+    if not comment:
+        raise HTTPException(422, "Say what should change; the comment goes to the Author agent.")
+    record = _load_reviewable(runbook_id, user, "send back")
+    version = record["scripts"][-1]["version"]
+    store.add_approval(runbook_id, reviewer=user["display_name"], user_id=user["id"], decision="sent_back",
+                       comment=comment, script_version=version)
+    store.log(runbook_id, "Engineer", f"{user['display_name']} asked for changes to v{version}: {comment}", "warning")
+    audit.record(user, "runbook.request_changes", "runbook", runbook_id, request, version=version, comment=comment)
+    jobs.submit("build", runbook_id, wait=wait, feedback=f"The approver asked for changes: {comment}")
     return store.get(runbook_id)
 
 
