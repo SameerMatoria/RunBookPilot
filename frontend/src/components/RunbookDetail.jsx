@@ -52,9 +52,10 @@ function Pipeline({ record }) {
 }
 
 function ActivityLog({ events, busy }) {
-  const end = useRef(null)
+  const list = useRef(null)
   useEffect(() => {
-    end.current?.scrollIntoView({ block: 'nearest' })
+    // Scroll the log itself to the newest event; scrollIntoView would also scroll the page.
+    if (list.current) list.current.scrollTop = list.current.scrollHeight
   }, [events.length])
   return (
     <div className="panel activity">
@@ -66,7 +67,7 @@ function ActivityLog({ events, busy }) {
           </span>
         )}
       </div>
-      <ul className="events">
+      <ul className="events" ref={list}>
         {events.map((e, i) => (
           <li key={i} className={`event ev-${e.level}`}>
             <span className="ev-time">{clockTime(e.at)}</span>
@@ -81,7 +82,6 @@ function ActivityLog({ events, busy }) {
             <span className="ev-msg muted">working…</span>
           </li>
         )}
-        <li ref={end} />
       </ul>
     </div>
   )

@@ -58,12 +58,10 @@ export default function Login({ onSignedIn }) {
     <div className="login-page">
       <form className="login-card" onSubmit={submit}>
         <div className="login-brand">
-          <span className="brand-mark">RP</span>
-          <div>
-            <div className="strong">RunbookPilot</div>
-            <div className="muted small">Runbooks in, tested automation out</div>
-          </div>
+          <span className="brand-mark" aria-hidden="true" />
+          <span className="strong">RunbookPilot</span>
         </div>
+        <p className="muted small login-tagline">Runbooks in, tested automation out.</p>
 
         <h1>{setup ? 'Create the first admin' : 'Sign in'}</h1>
         {setup && (

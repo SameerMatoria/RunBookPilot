@@ -95,7 +95,7 @@ export function RunDetail({ id }) {
   const { can } = useSession()
   const [run, setRun] = useState(null)
   const [error, setError] = useState(null)
-  const outputEnd = useRef(null)
+  const output = useRef(null)
 
   useEffect(() => {
     let timer
@@ -117,7 +117,8 @@ export function RunDetail({ id }) {
   }, [id])
 
   useEffect(() => {
-    if (run && ACTIVE.has(run.status)) outputEnd.current?.scrollIntoView({ block: 'nearest' })
+    const box = output.current
+    if (box && run && ACTIVE.has(run.status)) box.scrollTop = box.scrollHeight
   }, [run?.output?.length])
 
   if (error) return <div className="panel error-text">{error}</div>
@@ -184,9 +185,8 @@ export function RunDetail({ id }) {
               </span>
             )}
           </div>
-          <pre className="console tall">
+          <pre className="console tall" ref={output}>
             {run.output || '(no output yet)'}
-            <span ref={outputEnd} />
           </pre>
         </section>
       </div>

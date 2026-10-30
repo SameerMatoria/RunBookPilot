@@ -17,7 +17,7 @@ export function StatusChip({ status }) {
 
 export function RiskBadge({ tier }) {
   if (!tier) return null
-  return <span className={`risk risk-${tier}`}>{tier} risk</span>
+  return <span className={`risk risk-${tier}`}>{tier[0].toUpperCase() + tier.slice(1)} risk</span>
 }
 
 const STEP_LABELS = { OK: 'Pass', SKIP: 'Skipped', FAIL: 'Fail' }

@@ -93,7 +93,7 @@ function ServerForm({ credentials, onSaved }) {
 
   return (
     <form className="stack-sm" onSubmit={submit}>
-      <h3>Add a server</h3>
+      <h2>Add a server</h2>
       <div className="form-grid">
         <input placeholder="Name, e.g. contoso-web-01" value={form.name} onChange={set('name')} />
         <input placeholder="Hostname or IP" value={form.hostname} onChange={set('hostname')} />
@@ -250,7 +250,7 @@ export function ServersPage() {
             <ServerForm credentials={credentials} onSaved={loadServers} />
           </section>
           <section className="panel stack-sm">
-            <h3>Credentials</h3>
+            <h2>Credentials</h2>
             {credentials?.length === 0 && <p className="muted small">None yet.</p>}
             <ul className="cred-list">
               {credentials?.map((c) => (

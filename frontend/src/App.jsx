@@ -114,11 +114,8 @@ function Shell() {
     <div className="app">
       <header className="topbar">
         <a className="brand" href="#/">
-          <span className="brand-mark">RP</span>
-          <span>
-            RunbookPilot
-            <small>Runbooks in, tested automation out</small>
-          </span>
+          <span className="brand-mark" aria-hidden="true" />
+          RunbookPilot
         </a>
         <nav className="nav">
           {nav

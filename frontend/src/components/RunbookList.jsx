@@ -44,7 +44,6 @@ function UploadZone() {
         hidden
         onChange={(e) => upload(e.target.files[0])}
       />
-      <div className="upload-icon">⇪</div>
       <div className="upload-title">{uploading ? 'Uploading…' : 'Drop a runbook here'}</div>
       <div className="muted">PDF, Word, Markdown or text · or click to choose a file</div>
       {error && <div className="error-text">{error}</div>}
