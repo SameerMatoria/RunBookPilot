@@ -27,8 +27,8 @@ Script rules (all mandatory):
    RBP_STEP|<order>|<status>|<message>     where status is START, OK, SKIP or FAIL
 7. Idempotent: running it twice does no harm (e.g. only clean up if needed, only restart if needed
    when the runbook allows it).
-8. Never hard-code passwords, tokens or keys. If a secret is needed, read it from an environment
-   variable and fail if it is missing.
+8. Never hard-code passwords, tokens or keys. If the runbook needs a secret, read it from an
+   environment variable and fail if it is missing.
 9. Never use destructive commands the runbook does not ask for. Never reboot, format disks,
    flush firewalls or delete outside the paths the runbook names.
 10. The script runs ON the target server, so skip "SSH into the server" style steps: implement them
@@ -36,6 +36,15 @@ Script rules (all mandatory):
 11. Use the engineer's answer when a step has one. If a step is still unclear, implement the safest
     read-only version and explain in "notes".
 12. Target servers may lack sudo; use `sudo` only if the runbook does and `$EUID` is not 0.
+13. Steps a person does away from the server (update a ticket, fill in a sheet, tell or page
+    someone, raise a request, close an alert) are not automated: implement each as a step that logs
+    SKIP with what the person must do, and list it in "notes". Never contact external systems.
+14. Never require an input the runbook and the engineer's answers don't give (an environment
+    variable, file path, URL or argument). The only exception is a secret the runbook needs (rule 8).
+    Use the values the runbook names; print results the runbook says to record.
+15. A "when to use" line describes when an engineer starts the runbook. Don't turn it into a check
+    that stops the script; log what you see instead. Conditions inside the steps ("if X, do Y") are
+    real branches: check them and follow them.
 
 Reply with exactly two fenced code blocks and nothing else. First the full script:
 
