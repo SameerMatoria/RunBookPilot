@@ -29,6 +29,15 @@ def test_questions_block_build_until_answered(client, fakes):
     assert answered["parsed"]["steps"][0]["answer"] == "app-web-01"
 
 
+def test_windows_runbook_is_refused(client, fakes):
+    fakes.parsed = {**parsed_runbook(), "target_os": "windows"}
+    record = upload(client)
+    assert record["status"] == "unsupported"
+    assert "Linux" in record["error"]
+    assert fakes.author_calls == [] and record["scripts"] == []  # no Bash written for a Windows server
+    assert client.post(f"/runbooks/{record['id']}/build").status_code == 409
+
+
 def test_high_risk_needs_two_different_approvers(client, client_as, fakes):
     fakes.parsed = parsed_runbook(risk="high")
     rid = upload(client)["id"]

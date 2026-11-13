@@ -85,6 +85,8 @@ def build(runbook_id: str, request: Request, body: BuildIn | None = None, wait: 
     """Author writes the script, Tester tests and fixes it in the sandbox, Reviewer writes the card.
     Pass feedback to regenerate."""
     record = _load_idle(runbook_id)
+    if record["status"] == "unsupported":
+        raise HTTPException(409, record["error"])
     if not (record.get("parsed") or {}).get("steps"):
         raise HTTPException(409, "Runbook has not been parsed yet.")
     if questions := jobs.open_questions(record["parsed"]):

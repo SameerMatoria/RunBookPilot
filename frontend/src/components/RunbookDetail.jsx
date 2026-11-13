@@ -23,6 +23,7 @@ function pipelineState(record) {
     reviewing: [5, 'active'],
     awaiting_approval: [6, 'attention'],
     rejected: [6, 'failed'],
+    unsupported: [1, 'failed'],
     approved: [7, 'done'],
   }[record.status]
   if (at) return { index: at[0], state: at[1], hadQuestions }
@@ -167,6 +168,14 @@ export default function RunbookDetail({ id }) {
       <div className="detail-grid">
         <div className="stack">
           {record.status === 'needs_answers' && <QuestionsPanel record={record} act={act} />}
+          {record.status === 'unsupported' && (
+            <section className="panel panel-bad">
+              <div className="panel-head">
+                <h2>Not supported</h2>
+              </div>
+              <p>{record.error}</p>
+            </section>
+          )}
           {record.status === 'error' && <FailurePanel record={record} act={act} kind="error" />}
           {record.status === 'tests_failed' && <FailurePanel record={record} act={act} kind="tests" />}
           {record.review && !busy && (

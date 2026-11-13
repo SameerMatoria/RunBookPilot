@@ -113,6 +113,7 @@ export const STATUS_LABELS = {
   awaiting_approval: 'Awaiting approval',
   approved: 'Approved',
   rejected: 'Rejected',
+  unsupported: 'Not supported',
   error: 'Error',
 }
 
@@ -120,7 +121,7 @@ export function statusTone(status) {
   if (BUSY.has(status)) return 'busy'
   if (status === 'approved') return 'good'
   if (['needs_answers', 'awaiting_approval'].includes(status)) return 'attention'
-  if (['tests_failed', 'rejected', 'error'].includes(status)) return 'bad'
+  if (['tests_failed', 'rejected', 'unsupported', 'error'].includes(status)) return 'bad'
   return 'neutral'
 }
 

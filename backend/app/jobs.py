@@ -11,6 +11,8 @@ from .pipeline import new_script_version, test_and_fix
 log = logging.getLogger(__name__)
 
 BUSY_STATUSES = {"queued", "uploaded", "parsing", "writing_script", "testing", "reviewing"}
+WINDOWS_MESSAGE = ("This runbook is for Windows servers. RunbookPilot writes and tests Bash scripts for Linux "
+                   "servers only, so it has not written a script.")
 
 
 def open_questions(parsed: dict | None) -> list[int]:
@@ -57,6 +59,11 @@ def parse_job(runbook_id: str) -> None:
     parsed = parse_runbook(record["source_text"])
     questions = open_questions(parsed)
     store.update(runbook_id, parsed=parsed)
+    if parsed.get("target_os") == "windows":
+        # RunbookPilot writes and tests Bash for Linux only; a Bash script for a Windows server would be wrong.
+        store.update(runbook_id, status="unsupported", error=WINDOWS_MESSAGE)
+        store.log(runbook_id, "Parser", "This runbook is for Windows servers. RunbookPilot supports Linux only, so it stops here.", "error")
+        return
     store.log(runbook_id, "Parser", f"Found {len(parsed['steps'])} steps, risk tier {parsed.get('risk_tier')}, "
               f"{len(questions)} question(s) for the engineer", "success")
     if questions:
