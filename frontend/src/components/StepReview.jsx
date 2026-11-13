@@ -73,7 +73,13 @@ function SideBySide({ record, script, run }) {
                 <Code code={code} />
               ) : (
                 <div className="code-placeholder">
-                  {record.status === 'writing_script' ? 'The Author agent is writing this step…' : script ? 'No matching function' : 'No script yet'}
+                  {record.status === 'writing_script'
+                    ? 'The Author agent is writing this step…'
+                    : record.status === 'unsupported'
+                      ? 'No script: not supported'
+                      : script
+                        ? 'No matching function'
+                        : 'No script yet'}
                 </div>
               )}
               {run && (

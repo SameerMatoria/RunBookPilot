@@ -44,7 +44,9 @@ def _row(record: dict) -> dict:
         "hours_saved_per_year": None,
         "speedup": None,
     }
-    if passing and isinstance(manual, (int, float)) and isinstance(per_month, (int, float)) and manual > 0:
+    # A rejected script will never replace the manual runs, so it saves nothing.
+    will_run = passing and record.get("status") != "rejected"
+    if will_run and isinstance(manual, (int, float)) and isinstance(per_month, (int, float)) and manual > 0:
         saved_per_run = max(manual - AUTOMATED_MINUTES_PER_RUN, 0)
         row["hours_saved_per_year"] = round(saved_per_run * per_month * 12 / 60, 1)
         row["speedup"] = round(manual / AUTOMATED_MINUTES_PER_RUN, 1)
@@ -96,7 +98,7 @@ def compute() -> dict:
             # Median, not mean: one runbook paused for hours (waiting on answers or an AI quota) would dominate a mean.
             "median_minutes_to_automate": round(median(timed), 1) if timed else None,
             "hours_saved_per_year": round(sum(r["hours_saved_per_year"] or 0 for r in converted), 1),
-            "manual_runs_per_year": round(sum((r["runs_per_month"] or 0) * 12 for r in converted)),
+            "manual_runs_per_year": round(sum((r["runs_per_month"] or 0) * 12 for r in converted if r["hours_saved_per_year"] is not None)),
         },
         "runbooks": rows,
         "measured": measured(all_records),

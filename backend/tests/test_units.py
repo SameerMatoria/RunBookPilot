@@ -93,6 +93,15 @@ def test_metrics_hours_saved(client, fakes):
     assert row["speedup"] == 7.5
 
 
+def test_rejected_script_saves_no_hours(client, client_as, fakes):
+    rid = upload(client)["id"]
+    client_as("bob").post(f"/runbooks/{rid}/reject", json={"comment": "wrong approach"})
+    m = metrics.compute()
+    assert m["totals"]["converted"] == 1  # it did pass its sandbox tests
+    assert m["runbooks"][0]["hours_saved_per_year"] is None
+    assert m["totals"]["hours_saved_per_year"] == 0 and m["totals"]["manual_runs_per_year"] == 0
+
+
 # ---------- worker heartbeats ----------
 
 def test_sandbox_status_comes_from_worker_heartbeats():
