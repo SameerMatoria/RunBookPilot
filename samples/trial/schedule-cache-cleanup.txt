@@ -1,0 +1,11 @@
+RUNBOOK: SCHEDULE NIGHTLY SESSION CLEANUP ON A NEW WEB SERVER
+Team: Platform Ops   Time by hand: ~10 min   Used: ~6 times a month (new servers)
+
+Purpose: new web servers are missing the nightly job that clears old MyApp session files.
+
+a) Check if the job already exists: /etc/cron.d/myapp-session-cleanup
+b) If it does not exist, create it so that every night at 02:30, as root, it deletes files in
+   /var/cache/myapp/sessions older than 1 day.
+c) File must be owned by root, mode 644, and end with a newline (cron ignores the last line otherwise).
+d) Make sure the cron service is running.
+e) Note in the server build checklist that the job was added.

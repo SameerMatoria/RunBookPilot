@@ -8,5 +8,10 @@
   "db-connection-check.md": "The script runs on the database server itself. Run psql as the postgres user with sudo -u postgres. The before/after numbers go in the ticket by hand; the script prints them.",
   "kill-stuck-report-workers.md": "The script runs on the server itself. Stuck means elapsed time over 7200 seconds. Only processes whose command line contains report-worker count.",
   "listening-ports-audit.md": "The script runs on the server itself. The audit sheet is filled in by hand; the script prints the result for each port.",
-  "nginx-maintenance-mode.docx": "The script runs on the web server itself. The script only switches maintenance mode on; switching it off is a separate runbook. Telling the service desk is done by hand."
+  "nginx-maintenance-mode.docx": "The script runs on the web server itself. The script only switches maintenance mode on; switching it off is a separate runbook. Telling the service desk is done by hand.",
+  "nginx-5xx-spike.md": "The script runs on the web server itself. 5xx means the HTTP status field in the combined log format is 500-599. Restart MyApp with systemctl restart myapp. Handing over to the web team and posting in the incident channel are done by hand; the script prints what to send.",
+  "template-cache-cleanup.md": "The script runs on the web server itself. 'Not modified for 7 days' means modification time more than 7 days ago.",
+  "rotate-payment-api-key.md": "The script runs on the web server itself. The new key is passed to the script in the NEW_PAYMENT_API_KEY environment variable by the person running it. Telling the security team and the change ticket are done by hand.",
+  "schedule-cache-cleanup.txt": "The script runs on the new server itself. The build checklist is updated by hand.",
+  "pre-patch-snapshot.docx": "The script runs on the server itself. Use the short hostname and the date as YYYYMMDD. Attaching the file to the change record is done by hand; the script prints the file's path."
 }
