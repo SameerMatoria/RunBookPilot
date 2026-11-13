@@ -9,14 +9,15 @@ RUN apt-get update \
        nginx curl sudo procps findutils gawk ca-certificates openssl iproute2 tar gzip openssh-server \
     && rm -rf /var/lib/apt/lists/*
 
-COPY sandbox/systemctl sandbox/sandbox-init /usr/local/bin/
+COPY sandbox/systemctl sandbox/journalctl sandbox/sandbox-init /usr/local/bin/
 COPY sandbox/nginx-default.conf /etc/nginx/sites-available/default
 COPY sandbox/myapp-nginx.conf /etc/myapp/nginx.conf
 COPY sandbox/seed.sh /tmp/seed.sh
 COPY demo-server/start.sh /usr/local/bin/start-demo-server
-RUN sed -i 's/\r$//' /usr/local/bin/systemctl /usr/local/bin/sandbox-init /usr/local/bin/start-demo-server \
-         /tmp/seed.sh /etc/myapp/nginx.conf \
-    && chmod +x /usr/local/bin/systemctl /usr/local/bin/sandbox-init /usr/local/bin/start-demo-server \
+RUN sed -i 's/\r$//' /usr/local/bin/systemctl /usr/local/bin/journalctl /usr/local/bin/sandbox-init \
+         /usr/local/bin/start-demo-server /tmp/seed.sh /etc/myapp/nginx.conf \
+    && chmod +x /usr/local/bin/systemctl /usr/local/bin/journalctl /usr/local/bin/sandbox-init \
+         /usr/local/bin/start-demo-server \
     && bash /tmp/seed.sh && rm /tmp/seed.sh
 
 # The account RunbookPilot connects as: not root, with passwordless sudo (like most managed servers).

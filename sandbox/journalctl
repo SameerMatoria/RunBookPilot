@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Sandbox stand-in for journalctl (containers have no systemd journal).
+# Supports --disk-usage, --vacuum-time/--vacuum-size/--vacuum-files, and showing recent log lines
+# for nginx and myapp (-u <unit> with -n/--lines; --since and output options are accepted).
+unit=""
+lines=10
+action=show
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --disk-usage) action=usage ;;
+    --vacuum-time=*|--vacuum-size=*|--vacuum-files=*) action=vacuum ;;
+    --vacuum-time|--vacuum-size|--vacuum-files) action=vacuum; shift ;;
+    -u|--unit) unit="$2"; shift ;;
+    --unit=*) unit="${1#*=}" ;;
+    -n|--lines) lines="$2"; shift ;;
+    --lines=*) lines="${1#*=}" ;;
+    -n*) lines="${1#-n}" ;;
+    --since|--until|-o|--output|-p|--priority) shift ;;
+    *) ;;  # other flags (--no-pager, -q, -x, -e, --since=...) are accepted and ignored
+  esac
+  shift
+done
+
+case "$action" in
+  usage)
+    echo "Archived and active journals take up 24.0M in the file system." ;;
+  vacuum)
+    echo "Vacuuming done, freed 0B of archived journals from /var/log/journal." ;;
+  show)
+    case "${unit%.service}" in
+      myapp) cat /var/log/myapp/app.log /var/log/myapp/error.log 2>/dev/null | tail -n "$lines" ;;
+      nginx) tail -n "$lines" /var/log/nginx/error.log 2>/dev/null ;;
+      "") echo "-- No entries --" ;;
+      *) echo "-- No entries --" ;;
+    esac ;;
+esac
+exit 0

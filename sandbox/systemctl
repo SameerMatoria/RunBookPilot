@@ -2,11 +2,13 @@
 # Sandbox stand-in for systemctl (containers have no systemd).
 # Supports two services: nginx (port 80) and myapp (port 8080, its own nginx instance).
 quiet=0
+legend=1
 args=()
 for a in "$@"; do
   case "$a" in
     -q|--quiet) quiet=1 ;;
-    --no-pager|--full|-l) ;;
+    --no-legend) legend=0 ;;
+    --no-pager|--full|-l|--all|-a|--plain|--type=*|--state=*) ;;
     *) args+=("$a") ;;
   esac
 done
@@ -15,6 +17,22 @@ svc="${args[1]:-}"
 svc="${svc%.service}"
 
 say() { [ "$quiet" = 1 ] || echo -e "$@"; }
+
+unit_state() { [ -s "/run/$1.pid" ] && [ -d "/proc/$(cat "/run/$1.pid")" ] && echo "active running" || echo "inactive dead"; }
+case "$cmd" in
+  list-unit-files)
+    [ "$legend" = 1 ] && echo "UNIT FILE     STATE   PRESET"
+    for u in myapp nginx; do
+      [ -z "$svc" ] || [ "$svc" = "$u" ] && echo "$u.service enabled enabled"
+    done
+    exit 0 ;;
+  list-units)
+    [ "$legend" = 1 ] && echo "UNIT          LOAD   ACTIVE SUB     DESCRIPTION"
+    for u in myapp nginx; do
+      [ -z "$svc" ] || [ "$svc" = "$u" ] && echo "$u.service loaded $(unit_state "$u") $u"
+    done
+    exit 0 ;;
+esac
 
 case "$svc" in
   nginx) pidfile=/run/nginx.pid; ctl=(nginx); desc="A high performance web server" ;;

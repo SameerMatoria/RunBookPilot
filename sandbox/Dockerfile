@@ -8,13 +8,13 @@ RUN apt-get update \
        nginx curl sudo procps findutils gawk ca-certificates openssl iproute2 tar gzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Containers have no systemd, so a small stand-in answers systemctl for nginx and myapp.
-COPY systemctl sandbox-init /usr/local/bin/
+# Containers have no systemd, so small stand-ins answer systemctl and journalctl for nginx and myapp.
+COPY systemctl journalctl sandbox-init /usr/local/bin/
 COPY nginx-default.conf /etc/nginx/sites-available/default
 COPY myapp-nginx.conf /etc/myapp/nginx.conf
 COPY seed.sh /tmp/seed.sh
-RUN sed -i 's/\r$//' /usr/local/bin/systemctl /usr/local/bin/sandbox-init /tmp/seed.sh /etc/myapp/nginx.conf \
-    && chmod +x /usr/local/bin/systemctl /usr/local/bin/sandbox-init \
+RUN sed -i 's/\r$//' /usr/local/bin/systemctl /usr/local/bin/journalctl /usr/local/bin/sandbox-init /tmp/seed.sh /etc/myapp/nginx.conf \
+    && chmod +x /usr/local/bin/systemctl /usr/local/bin/journalctl /usr/local/bin/sandbox-init \
     && bash /tmp/seed.sh && rm /tmp/seed.sh
 
 WORKDIR /root

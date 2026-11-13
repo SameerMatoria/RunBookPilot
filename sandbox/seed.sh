@@ -38,6 +38,7 @@ touch /tmp/upload_current.tmp
 # --- TLS certificate that expires in 20 days (inside the 30-day warning window) ---
 mkdir -p /etc/ssl/app
 openssl req -x509 -newkey rsa:2048 -nodes -days 20 -subj "/CN=app.example.internal" \
+  -addext "subjectAltName=DNS:app.example.internal" \
   -keyout /etc/ssl/app/app.key -out /etc/ssl/app/app.crt 2>/dev/null
 chmod 600 /etc/ssl/app/app.key
 
