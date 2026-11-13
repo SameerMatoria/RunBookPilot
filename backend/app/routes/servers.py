@@ -195,6 +195,15 @@ def test_connection(server_id: int, request: Request, admin: dict = Depends(requ
             _, stdout, _ = client.exec_command("uname -srm; hostname", timeout=10)
             detail = " / ".join(stdout.read().decode(errors="replace").split("\n")).strip(" /")
             ok = True
+            # Runs can't type a sudo password, so scripts that use sudo need it without one.
+            _, stdout, _ = client.exec_command(
+                'if [ "$(id -u)" = 0 ]; then echo root; elif sudo -n true 2>/dev/null; then echo yes; else echo no; fi', timeout=10)
+            detail += {
+                "root": " · signed in as root",
+                "yes": " · sudo works without a password",
+            }.get(stdout.read().decode(errors="replace").strip(),
+                  " · WARNING: sudo needs a password here, so script steps that use sudo will fail. "
+                  "Allow this account passwordless sudo, or sign in as root.")
         finally:
             client.close()
     except ssh.SSHError as e:

@@ -22,6 +22,7 @@ class FakeChannel:
         self.code = fake.dry_code if dry else fake.exec_code
         fake.commands.append(command)
 
+    def shutdown_write(self): self.fake.closed_inputs.append(self.command)
     def set_combine_stderr(self, _): pass
     def settimeout(self, _): pass
     def exec_command(self, _): pass
@@ -58,7 +59,8 @@ class FakeSSH:
         self.dry_output, self.dry_code = GOOD_OUTPUT, 0
         self.exec_output, self.exec_code = GOOD_OUTPUT, 0
         self.commands, self.uploaded, self.chmods = [], {}, []
-        self.connects = []
+        self.connects, self.closed_inputs = [], []
+        self.sudo = "yes"  # what the connection test's sudo check prints: root, yes or no
         self.host_key = ("ssh-ed25519 AAAAfake", "SHA256:fakefingerprint")
 
     def connect(self, target, trust_new_host_key=False):
@@ -91,7 +93,8 @@ class FakeClient:
 
     def exec_command(self, command, timeout=None):
         self.fake.commands.append(command)
-        out = type("Out", (), {"read": lambda _self: b"Linux 6.1 x86_64\ndemo-server\n"})()
+        text = self.fake.sudo if "sudo -n" in command else "Linux 6.1 x86_64\ndemo-server\n"
+        out = type("Out", (), {"read": lambda _self: text.encode()})()
         return None, out, None
 
     def close(self):
@@ -159,6 +162,13 @@ def test_first_test_pins_host_key_later_tests_dont_repin(client_as, server, fake
     assert fake_ssh.connects[-1][1] is False  # second connection did not trust a new key
 
 
+def test_connection_test_reports_sudo(client_as, server, fake_ssh):
+    assert "sudo works without a password" in server["last_check_detail"]
+    fake_ssh.sudo = "no"
+    again = client_as("root").post(f"/servers/{server['id']}/test").json()
+    assert again["last_check_ok"] and "sudo needs a password" in again["last_check_detail"]
+
+
 def test_changing_hostname_requires_reverification(client_as, server):
     updated = client_as("root").patch(f"/servers/{server['id']}", json={"hostname": "10.0.0.99"}).json()
     assert updated["verified"] is False
@@ -176,10 +186,15 @@ def test_operator_runs_approved_script_dry_run_then_execute(client_as, approved,
     assert run["status"] == "succeeded", run
     assert run["dry_run_passed"] is True
     assert [s["status"] for s in run["steps"]] == ["OK", "OK"]
+    assert run["exit_code"] == 0
+    assert run["manual_followups"] == ["Update the incident ticket"]  # left for a person; shown on the run page
     assert any(c.startswith("bash /tmp/runbookpilot-") and c.endswith("--execute") for c in fake_ssh.commands)
     assert any(c.startswith("rm -f /tmp/runbookpilot-") for c in fake_ssh.commands)  # cleaned up
     assert list(fake_ssh.chmods)[0][1] == 0o700
     assert run["script_sha256"] and len(run["script_sha256"]) == 64
+    # Nobody can answer a prompt during a run, so the script's input is closed instead of left hanging.
+    script_commands = [c for c in fake_ssh.commands if c.startswith("bash /tmp/runbookpilot-")]
+    assert script_commands and all(c in fake_ssh.closed_inputs for c in script_commands)
 
 
 def test_failed_dry_run_stops_execute(client_as, approved, server, fake_ssh):
@@ -228,7 +243,7 @@ def test_cancel_queued_run(client_as, approved, server, fake_ssh):
     assert carol.post(f"/runs/{rid}/cancel").json()["status"] == "cancelling"
     run_worker_until_idle()
     assert carol.get(f"/runs/{rid}").json()["status"] == "cancelled"
-    assert fake_ssh.commands == ["uname -srm; hostname"]  # only the earlier connection test ran
+    assert not any("runbookpilot-" in c for c in fake_ssh.commands)  # only the earlier connection test ran
 
 
 def test_measured_metrics(client_as, approved, server, fake_ssh):

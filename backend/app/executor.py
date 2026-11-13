@@ -51,6 +51,9 @@ def _exec(client, command: str, run_id: int, label: str) -> int:
     channel.set_combine_stderr(True)
     channel.settimeout(1.0)
     channel.exec_command(command)
+    # Nobody can type into a run: close its input, so a command waiting for an answer (a [Y/n] prompt,
+    # `read`) fails at once instead of hanging until the timeout. The sandbox behaves the same way.
+    channel.shutdown_write()
     started = time.monotonic()
     buffer, last_flush = "", time.monotonic()
     while True:
