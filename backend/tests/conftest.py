@@ -89,7 +89,8 @@ def fakes(monkeypatch):
     monkeypatch.setattr(pipeline, "diagnose", lambda script, run, lint=None: {
         "failed_step": 2, "category": f.diagnosis_category, "diagnosis": "step 2 broke", "fix": "fix step 2"})
     monkeypatch.setattr(jobs, "review", lambda parsed, script, run, attempts: {
-        "headline": "Restarts nginx", "recommendation": "approve", "confidence": "high", "risks": []})
+        "headline": "Restarts nginx", "recommendation": "approve", "confidence": "high", "risks": [],
+        "manual_followups": ["Update the incident ticket"]})
     monkeypatch.setattr(sandbox, "run_script", fake_run_script)
     return f
 

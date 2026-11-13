@@ -72,6 +72,10 @@ def get_run(run_id: int, user: dict = Depends(current_user)):
     rec = store.get(data["runbook_id"])
     data["runbook_title"] = ((rec or {}).get("parsed") or {}).get("title")
     data["parsed_steps"] = ((rec or {}).get("parsed") or {}).get("steps", [])
+    # What the script leaves to a person, from the Reviewer's card for this script version.
+    review = (rec or {}).get("review") or {}
+    same_version = review.get("script_version") == data["script_version"]
+    data["manual_followups"] = (review.get("manual_followups") or []) if same_version else []
     return data
 
 

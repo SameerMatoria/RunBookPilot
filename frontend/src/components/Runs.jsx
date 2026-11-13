@@ -160,7 +160,11 @@ export function RunDetail({ id }) {
         <section className="panel">
           <div className="panel-head">
             <h2>Steps</h2>
-            {run.duration_s != null && <span className="muted small">{run.duration_s.toFixed(1)} s</span>}
+            {run.duration_s != null && (
+              <span className="muted small">
+                {run.duration_s.toFixed(1)} s{run.exit_code != null && ` · exit code ${run.exit_code}`}
+              </span>
+            )}
           </div>
           {run.steps.length === 0 && <div className="muted small">{ACTIVE.has(run.status) ? 'Waiting for output…' : 'No step results.'}</div>}
           <ul className="run-steps">
@@ -172,6 +176,17 @@ export function RunDetail({ id }) {
               </li>
             ))}
           </ul>
+          {!ACTIVE.has(run.status) && run.manual_followups?.length > 0 && (
+            <div className="manual-followups">
+              <h3>Still to do by hand</h3>
+              <p className="muted small">The script doesn't do these. Someone has to, before the job is finished.</p>
+              <ul>
+                {run.manual_followups.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <p className="muted small">
             <a href={`#/runbooks/${run.runbook_id}`}>Open the runbook →</a>
           </p>

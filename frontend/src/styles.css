@@ -1473,6 +1473,22 @@ select:focus {
 .run-steps li .tiny {
   grid-column: 2;
 }
+.manual-followups {
+  border-left: 3px solid var(--warn);
+  padding: 2px 0 2px 12px;
+  margin: 4px 0 12px;
+}
+.manual-followups h3 {
+  margin-top: 0;
+  color: var(--text);
+}
+.manual-followups p {
+  margin: 0 0 6px;
+}
+.manual-followups ul {
+  margin: 0;
+  padding-left: 18px;
+}
 .console.tall {
   max-height: 70vh;
   min-height: 200px;
