@@ -1,0 +1,14 @@
+WEEKLY CHECK - APP TLS CERT EXPIRY
+Owner: Web Platform | Mondays | approx 10 min | 4x per month
+
+1. openssl x509 -in /etc/ssl/app/app.crt -noout -subject -enddate
+2. calc days left until expiry
+3. < 30 days -> raise renewal request (RENEW queue), note days left in it
+   < 7 days -> also page web on-call
+4. openssl x509 -in /etc/ssl/app/app.crt -noout -ext subjectAltName   (SANs must include app.example.internal)
+5. check key matches cert:
+   openssl x509 -noout -modulus -in /etc/ssl/app/app.crt | openssl md5
+   openssl rsa -noout -modulus -in /etc/ssl/app/app.key | openssl md5
+   (the two hashes must be the same)
+6. ls -l /etc/ssl/app/app.key  -> must not be readable by others
+7. record result in the weekly checks sheet

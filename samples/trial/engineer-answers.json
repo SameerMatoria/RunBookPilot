@@ -1,0 +1,12 @@
+{
+  "_about": "Facts an on-call engineer would give when the Parser asks a question. Same rule as samples/engineer-answers.json: facts about the environment and the team's intent, never script code.",
+  "var-filling-up.md": "The script runs on the affected server itself. Vacuum the journal with journalctl --vacuum-time=3d. 'More than a week old' means file modification time older than 7 days, and only compressed *.gz logs in /var/log/nginx and /var/log/myapp. MyApp's session files are in /var/cache/myapp/sessions; older than a day means modified more than 1 day ago; delete them without prompting. 'Both web services' are nginx and myapp. Closing the alert is done by hand.",
+  "tls-expiry-check.txt": "The script runs on the server itself. Days left means whole days between now and the certificate's notAfter date. Raising the renewal request, paging on-call and filling in the weekly sheet are done by hand; the script only reports the days left and which action is needed. The key must not be readable by group or others (600 or 400 is fine). The script exits non-zero only if a check fails: missing file, wrong SAN, key mismatch, or a readable key.",
+  "myapp-memory-incident.md": "The script runs on the server itself. Restart MyApp with systemctl restart myapp. Escalations and the incident ticket are done by hand; when the runbook says to stop or escalate, the script stops and says why.",
+  "rotate-myapp-logs.md": "The script runs on the server itself. MyApp's logrotate config is /etc/logrotate.d/myapp.",
+  "restart-orders-api.md": "The script runs on the server itself, as a user with sudo. Run pm2 commands as the orders user with sudo -u orders.",
+  "db-connection-check.md": "The script runs on the database server itself. Run psql as the postgres user with sudo -u postgres. The before/after numbers go in the ticket by hand; the script prints them.",
+  "kill-stuck-report-workers.md": "The script runs on the server itself. Stuck means elapsed time over 7200 seconds. Only processes whose command line contains report-worker count.",
+  "listening-ports-audit.md": "The script runs on the server itself. The audit sheet is filled in by hand; the script prints the result for each port.",
+  "nginx-maintenance-mode.docx": "The script runs on the web server itself. The script only switches maintenance mode on; switching it off is a separate runbook. Telling the service desk is done by hand."
+}

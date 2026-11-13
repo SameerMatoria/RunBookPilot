@@ -6,6 +6,7 @@ Nothing is approved automatically; that stays a human decision.
 
 Usage:  python run_benchmark.py                 (all samples)
         python run_benchmark.py clear-app-cache.md check-ssl-certificate.md
+        python run_benchmark.py --set trial     (the runbooks in samples/trial)
 """
 import json
 import sys
@@ -16,11 +17,18 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 from app.service_accounts import client_for
 
+args = sys.argv[1:]
 SAMPLES = Path(__file__).resolve().parent.parent / "samples"
+if "--set" in args:
+    i = args.index("--set")
+    SAMPLES = SAMPLES / args[i + 1]
+    del args[i:i + 2]
 ANSWERS = json.loads((SAMPLES / "engineer-answers.json").read_text(encoding="utf-8"))
+DOCUMENTS = (".md", ".txt", ".docx", ".pdf")
 
 client = client_for("benchmark", ("submitter",), "Benchmark runner")
-names = [a for a in sys.argv[1:] if not a.startswith("--")] or sorted(p.name for p in SAMPLES.glob("*.md"))
+names = [a for a in args if not a.startswith("--")] or sorted(
+    p.name for p in SAMPLES.iterdir() if p.suffix in DOCUMENTS and p.name != "README.md" and p.name != "RESULTS.md")
 
 results = []
 for name in names:

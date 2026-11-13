@@ -10,9 +10,8 @@ We have **$250 of Azure credits in total**, and they must last through the hacka
 
 - Everything is built and tested **locally first**, with Docker Compose standing in for the Azure
   services. Local development costs nothing.
-- Azure deployment comes **late** (phase 5), on the cheapest tiers: Container Apps that scale to
-  zero, a Burstable Postgres server that can be stopped, the free tier of Static Web Apps, and a free
-  AI model unless the pitch needs Azure AI Foundry.
+- Azure deployment comes **late** (phase 5): one small Linux VM running the same Docker setup,
+  created shortly before it's needed and deleted afterwards.
 - Budget alerts at $25, $50 and $100, and a one-command teardown.
 
 ## Phases
@@ -57,11 +56,18 @@ Linux only, by choice: make the core reliable on real runbooks instead of adding
 - **Rollback**: scripts back up what they change and restore it if a later step fails.
 
 ### Phase 5: Azure deployment
-- **Sandbox driver for Azure Container Apps Jobs** (the API never talks to Docker; workers report the sandbox status).
-- **Bicep templates**: Container Apps (API and worker), Container Apps Jobs (sandbox), Static Web Apps
-  (web app), Postgres Flexible Server, Key Vault, Container Registry, Application Insights.
-- **GitHub Actions** deploy pipeline, budget alerts, and `deploy` / `teardown` scripts.
-- Optional switch of the AI model to Azure AI Foundry (one setting).
+The hackathon organisers accept a demo recorded locally as long as Azure runs the same thing, so the
+first deployment is the same Docker Compose stack on Azure, not a re-architecture.
+- **One small Linux VM** running the same `docker compose` setup (database, API, worker, web app,
+  sandbox). Same images, same behaviour as on the laptop.
+- **Network**: only the web app is public; SSH to the VM only from our own IP address.
+- **`deploy` / `teardown` scripts** and **budget alerts**; the VM is created shortly before it is
+  needed and deleted afterwards.
+- **AI model on Azure AI Foundry** instead of Groq/Gemini (one setting), tested with one runbook
+  before the switch.
+
+Later, if it becomes a real product, the parts move to managed services one at a time: Container Apps
+(API and worker), Container Apps Jobs (sandbox), Postgres Flexible Server, Key Vault, Static Web Apps.
 
 ### Phase 6: Microsoft Teams
 - **Teams approval cards**: a script ready for review posts a card to Teams with its summary and risk.
