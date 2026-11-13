@@ -10,7 +10,7 @@ We have **$250 of Azure credits in total**, and they must last through the hacka
 
 - Everything is built and tested **locally first**, with Docker Compose standing in for the Azure
   services. Local development costs nothing.
-- Azure deployment comes **late** (phase 4), on the cheapest tiers: Container Apps that scale to
+- Azure deployment comes **late** (phase 5), on the cheapest tiers: Container Apps that scale to
   zero, a Burstable Postgres server that can be stopped, the free tier of Static Web Apps, and a free
   AI model unless the pitch needs Azure AI Foundry.
 - Budget alerts at $25, $50 and $100, and a one-command teardown.
@@ -43,20 +43,31 @@ Each phase ends with a working product; nothing is half-built between phases.
 - Optional **schedules** and **alert-triggered runs** (a monitoring webhook starts an approved script).
 - **Measured metrics**: real run counts and durations replace the estimates on the Impact page.
 
-### Phase 4: Azure deployment
+### Phase 4: Work well on Linux
+Linux only, by choice: make the core reliable on real runbooks instead of adding platforms.
+- **Trial on real runbooks**: record which end up tested, draft only, needing an engineer, or failed,
+  and let the results set the priorities below.
+- **Sandbox built from what the runbook needs**: required services and versions come from the real
+  server (read-only SSH check), the runbook, or the engineer, and are never guessed. Images are built
+  with network access from an approved package list; tests still run with no network.
+- **Review card says what was tested**: for example "Debian 12, Node 20, placeholder app".
+- **Clear refusal of Windows runbooks**: the Parser already labels them; stop there and say why,
+  instead of writing a Bash script for a Windows server.
+- **Lint gate catches hidden commands**, such as `base64 -d | bash` and `curl | bash`.
+- **Rollback**: scripts back up what they change and restore it if a later step fails.
+
+### Phase 5: Azure deployment
 - **Sandbox driver for Azure Container Apps Jobs** (the API never talks to Docker; workers report the sandbox status).
 - **Bicep templates**: Container Apps (API and worker), Container Apps Jobs (sandbox), Static Web Apps
   (web app), Postgres Flexible Server, Key Vault, Container Registry, Application Insights.
 - **GitHub Actions** deploy pipeline, budget alerts, and `deploy` / `teardown` scripts.
 - Optional switch of the AI model to Azure AI Foundry (one setting).
 
-### Phase 5: PowerShell and Windows
-- The Author writes PowerShell for Windows targets; **PSScriptAnalyzer** as the lint gate.
-- A PowerShell sandbox (PowerShell 7 in a Linux container for most checks; a Windows sandbox for
-  Windows-only commands).
+### Phase 6: Microsoft Teams
+- **Teams approval cards**: a script ready for review posts a card to Teams with its summary and risk.
+- Approving from Teams follows the same rules as the web app: a signed-in approver, never the uploader,
+  and two approvers for high-risk scripts.
 
-### Phase 6: Integrations
-- **Script library in Git**: one pull request per runbook, with version diffs.
-- **Teams** approval cards.
-- **ServiceNow / Jira**: link runbooks and runs to tickets.
-- **Confluence / SharePoint** runbook import.
+## Not planned
+Dropped so the effort goes into Linux quality: PowerShell and Windows servers, the script library in
+Git, ServiceNow / Jira, and Confluence / SharePoint import.

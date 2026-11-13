@@ -513,10 +513,9 @@
         <tr><td>AI model</td><td>Groq free tier (gpt-oss-120b)</td><td class="arrow">→</td><td>Azure AI Foundry. It's a one-line config change, because the code speaks the standard OpenAI-style API.</td></tr>
         <tr><td>Agents</td><td>4 Python agents with a fix loop</td><td class="arrow">→</td><td>Foundry Agent Service + Microsoft Agent Framework</td></tr>
         <tr><td>Document reading</td><td>pypdf, python-docx</td><td class="arrow">→</td><td>Azure AI Document Intelligence</td></tr>
-        <tr><td>Sandbox</td><td>Docker on the laptop</td><td class="arrow">→</td><td>Azure Container Apps jobs (+ a Windows VM for PowerShell)</td></tr>
+        <tr><td>Sandbox</td><td>Docker on the laptop</td><td class="arrow">→</td><td>Azure Container Apps jobs</td></tr>
         <tr><td>Storage</td><td>Postgres (Docker) + a job queue in Postgres</td><td class="arrow">→</td><td>Azure Database for PostgreSQL</td></tr>
         <tr><td>Sign-in</td><td>Local accounts + Entra ID (ready)</td><td class="arrow">→</td><td>Entra ID with app roles</td></tr>
-        <tr><td>Script history</td><td>Versions kept per runbook</td><td class="arrow">→</td><td>GitHub repo, one pull request per runbook</td></tr>
         <tr><td>Approval</td><td>Web app</td><td class="arrow">→</td><td>Web app + Teams adaptive card</td></tr>
         <tr><td>Running for real</td><td>SSH from the worker; credentials encrypted with a master key</td><td class="arrow">→</td><td>Same, with the master key in Key Vault</td></tr>
         <tr><td>Web + API</td><td>React (Vite) + FastAPI</td><td class="arrow">→</td><td>Static Web Apps + Azure Functions</td></tr>
@@ -554,7 +553,7 @@
   </details>
   <details>
     <summary>What about Windows servers and PowerShell?</summary>
-    <p>The prototype focuses on Linux and Bash to do one thing well. The same design extends to PowerShell with a Windows sandbox VM and PSScriptAnalyzer as the lint gate. That's on the roadmap.</p>
+    <p>Not supported, by choice. RunbookPilot focuses on Linux and Bash so it does one thing well, and that's where our effort goes next. Windows isn't on the current roadmap.</p>
   </details>
   <details>
     <summary>What's the business impact?</summary>
