@@ -3,8 +3,7 @@
 #   docker compose up -d db          Postgres only (for local development with start.ps1)
 #   docker compose up -d --build     everything: http://localhost:8080
 #
-# The same pieces map to Azure in production: db -> Postgres Flexible Server, api/worker ->
-# Container Apps, web -> Static Web Apps.
+# On Azure, this same file runs on one VM with an HTTPS front door added: see deploy/azure/README.md.
 
 services:
   db:

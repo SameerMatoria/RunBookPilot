@@ -6,3 +6,7 @@ data/
 node_modules/
 frontend/dist/
 *.tmp
+
+# Other env files hold secrets too (e.g. backend/.env.azure); only the example is committed.
+.env.*
+!.env.example

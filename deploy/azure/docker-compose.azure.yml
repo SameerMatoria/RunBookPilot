@@ -1,0 +1,41 @@
+# Azure: the same stack as docker-compose.yml, with an HTTPS front door. Used on top of it:
+#   docker compose -f docker-compose.yml -f deploy/azure/docker-compose.azure.yml up -d --build
+# SITE_ADDRESS (the VM's DNS name) comes from the .env file next to docker-compose.yml.
+
+services:
+  db:
+    ports: !reset []  # only reachable from the other containers, never from the internet
+    restart: unless-stopped
+
+  api:
+    environment:
+      COOKIE_SECURE: "true"  # the session cookie is only sent over HTTPS
+    restart: unless-stopped
+
+  worker:
+    restart: unless-stopped
+
+  web:
+    ports: !reset []  # served through caddy
+    restart: unless-stopped
+
+  demo-server:
+    restart: unless-stopped  # still bound to 127.0.0.1 only, so not reachable from outside
+
+  # HTTPS with a free Let's Encrypt certificate for the VM's DNS name, renewed automatically.
+  caddy:
+    image: caddy:2.8.4-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS to the VM's DNS name in .env}
+    volumes:
+      - ./deploy/azure/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
