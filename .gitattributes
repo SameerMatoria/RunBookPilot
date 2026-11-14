@@ -1,3 +1,4 @@
 * text=auto
 *.sh text eol=lf
 sandbox/* text eol=lf
+deploy/azure/* text eol=lf
