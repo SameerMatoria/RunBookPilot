@@ -25,8 +25,9 @@ DEFAULT_MAX_TOKENS = 4000
 
 
 def _extra_params(model: str) -> dict:
-    """Model-family specific options (only gpt-oss models accept reasoning_effort)."""
-    if model.startswith("openai/gpt-oss") and config.LLM_REASONING_EFFORT:
+    """Model-family specific options (only gpt-oss models accept reasoning_effort). Providers name
+    them differently: "openai/gpt-oss-120b" on Groq, a deployment such as "gpt-oss-120b" on Azure."""
+    if "gpt-oss" in model and config.LLM_REASONING_EFFORT:
         return {"reasoning_effort": config.LLM_REASONING_EFFORT}
     return {}
 
@@ -68,7 +69,7 @@ def _complete(system: str, user: str, parse, json_mode: bool, agent: str | None)
                 response = client.chat.completions.create(
                     model=model,
                     messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-                    response_format={"type": "json_object"} if json_mode else None,
+                    response_format={"type": "json_object"} if json_mode and config.LLM_JSON_MODE else None,
                     temperature=0.1,
                     max_tokens=MAX_TOKENS.get(agent or "", DEFAULT_MAX_TOKENS),
                     **_extra_params(model),
@@ -85,9 +86,21 @@ def _complete(system: str, user: str, parse, json_mode: bool, agent: str | None)
     raise LLMError("All AI models failed. " + " | ".join(errors[-2:]))
 
 
+def _parse_json(text: str) -> dict:
+    """Parse a JSON reply. Without JSON mode a model may wrap it in a code fence or a sentence, so
+    fall back to the outermost {...}. Raises (and so triggers a retry) if there's no valid object."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start == -1 or end <= start:
+            raise
+        return json.loads(text[start:end + 1])
+
+
 def chat_json(system: str, user: str, agent: str | None = None) -> dict:
     """Send a prompt and get back a parsed JSON object."""
-    return _complete(system, user, json.loads, json_mode=True, agent=agent)
+    return _complete(system, user, _parse_json, json_mode=True, agent=agent)
 
 
 def chat_text(system: str, user: str, parse=lambda text: text, agent: str | None = None):

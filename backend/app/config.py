@@ -20,6 +20,10 @@ LLM_FALLBACK_MODELS = [m.strip() for m in os.getenv("LLM_FALLBACK_MODELS", "").s
 # How hard gpt-oss reasoning models think before answering: low, medium or high.
 LLM_REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "medium")
 
+# Ask the provider to force JSON replies ("JSON mode"). Set to false where that mode garbles the
+# reply: Azure's json_object mode corrupts gpt-oss output. The prompts ask for JSON either way.
+LLM_JSON_MODE = os.getenv("LLM_JSON_MODE", "true").lower() == "true"
+
 # Optional preferred model per agent, e.g. a smaller model for the Parser to save the main model's
 # quota for the Author. Unset agents use LLM_MODEL.
 LLM_AGENT_MODELS = {
